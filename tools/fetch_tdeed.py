@@ -185,6 +185,16 @@ def signature(root: Path = TDEED_DIR, config: str = DEFAULT_CONFIG) -> Signature
     )
 
 
+def checkpoint_path(config: str = DEFAULT_CONFIG) -> Path:
+    """Dónde espera `inference.py` el fichero de pesos, exactamente.
+
+    Lo arma él como `checkpoints/<Dataset>/<config>/checkpoint_best.pt`, donde `<Dataset>`
+    es el prefijo del nombre de la configuración. Ponerlo un nivel más arriba —que es lo
+    que uno haría mirando la carpeta— falla con un `FileNotFoundError` a mitad de carga.
+    """
+    return Path("checkpoints") / config.split("_", 1)[0] / config / "checkpoint_best.pt"
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="fetch_tdeed",
@@ -209,7 +219,7 @@ def main(argv: list[str] | None = None) -> int:
         print(linea)
     print()
     print(f"pesos     : {CHECKPOINTS_URL}")
-    print(f"            a mano, y dentro de {args.dir / 'checkpoints' / args.config}")
+    print(f"            a mano, y como {args.dir / checkpoint_path(args.config)}")
     print(f"aviso     : los {EXTRACTED_FPS} fps de extraccion son lo que documenta su")
     print("            script, no una constante: confirmalos al correr la inferencia")
     return 0

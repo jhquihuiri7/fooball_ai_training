@@ -63,6 +63,10 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S101", "PLR2004", "ANN"]
+# Un notebook de Colab se lee y se ejecuta a mano, y sus celdas mezclan Python con magias
+# de shell. Anotar tipos, abrir con `Path.open` o partir una linea de ffmpeg en dos no lo
+# mejora: lo hace mas dificil de leer, que es justo lo contrario de para lo que existe.
+"notebooks/*.ipynb" = ["ANN", "E501", "PTH123", "SIM115", "PLC0207", "I001"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

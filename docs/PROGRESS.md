@@ -10,7 +10,7 @@ Leyenda: ✅ hecha · 🚧 en curso · ⛔ bloqueada · ⬜ pendiente
 | TASK | Qué | Estado |
 |---|---|---|
 | **T0** | Repo, entorno y contrato con el repo de detección | ✅ |
-| **T1** | T-DEED clonado y su firma leída | ✅ código · ⛔ inferencia: faltan pesos y GPU |
+| **T1** | T-DEED clonado, su firma leída y el notebook de la línea base | ✅ código · 🚧 inferencia: el notebook está, falta correrlo |
 | **T2** | Datos de SoccerNet | ✅ herramienta · ✅ tarea elegida ([ADR 0001](DECISIONS/0001-ball-action-spotting-sin-corner.md)) · ⬜ descarga |
 | T3 | Reducir a las clases que interesan | ⬜ |
 | T4 | Fine-tuning, con división por partidos completos | ⬜ |
@@ -63,11 +63,33 @@ OUT, CROSS, THROW IN, SHOT, BALL PLAYER BLOCK, PLAYER SUCCESSFUL TACKLE, FREE KI
    que puede degradarse al exportar a ONNX. La verificación numérica de T6 no es un
    trámite: es donde se sabrá si este camino sirve.
 
-### Lo que **no** se hizo, y por qué
+### La línea base: `notebooks/t1_baseline.ipynb` (2026-09-20)
 
-**La inferencia de línea base no se ha ejecutado.** Hacen falta dos cosas que no están
-aquí: los pesos, que están en un Google Drive y se bajan a mano, y una GPU. La herramienta
-dice dónde están y dónde ponerlos. Correrla es lo primero que hay que hacer en el pod.
+**No se ha ejecutado**: se escribió sin GPU delante. Va a Colab, que es donde el
+propietario entrena; RunPod queda solo para el directo.
+
+**No necesita los 19 GB.** `inference.py` corre sobre **un vídeo**, así que la línea base
+se hace con metraje propio, que además contesta mejor la pregunta: no «¿reproduce el
+paper?» sino «¿ve algo en nuestra cámara?».
+
+**Tres trampas del código de T-DEED**, encontradas leyéndolo y ya resueltas en el notebook:
+
+1. **Los pesos van en `checkpoints/SoccerNetBall/SoccerNetBall_challenge1/checkpoint_best.pt`.**
+   `inference.py` arma esa ruta con el prefijo del nombre del modelo. Ponerlos donde uno
+   los pondría mirando la carpeta —un nivel más arriba— falla a mitad de la carga.
+   `tools/fetch_tdeed.py` decía la ruta equivocada; corregido.
+2. **El vídeo tiene que ir a 25 fps.** `ActionSpotInferenceDataset` lee con OpenCV y se
+   queda con uno de cada dos frames **nativos**: no remuestrea nada. Con un vídeo a 30
+   fps el clip le llega a 15 y el modelo ve la jugada acelerada respecto a todo lo que
+   aprendió. No da error, solo acierta menos.
+3. **No instalar su `requirements.txt`.** Pinea `torch==2.3.1` y `numpy==1.26.4` y pelea
+   con Colab. Bastan `timm`, `tabulate` y `wandb` —que `inference.py` importa y no usa—.
+
+La salida cae en `inference_output/results_inference.json` con el frame nativo, la clase y
+la confianza.
+
+**Almacenamiento**: el propietario servirá los datos desde Google Cloud Storage de un
+proyecto suyo, así que el tope de 15 GB de Drive deja de ser un problema para T4.
 
 ---
 
