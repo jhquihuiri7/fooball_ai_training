@@ -10,7 +10,7 @@ Leyenda: ✅ hecha · 🚧 en curso · ⛔ bloqueada · ⬜ pendiente
 | TASK | Qué | Estado |
 |---|---|---|
 | **T0** | Repo, entorno y contrato con el repo de detección | ✅ |
-| **T1** | T-DEED clonado, su firma leída y la línea base corrida | ✅ · ⬜ falta contrastar los instantes contra el vídeo |
+| **T1** | T-DEED clonado, su firma leída y la línea base corrida y contrastada | ✅ |
 | **T2** | Datos de SoccerNet | ✅ herramienta · ✅ tarea elegida ([ADR 0001](DECISIONS/0001-ball-action-spotting-sin-corner.md)) · ⬜ descarga |
 | T3 | Reducir a las clases que interesan | ⬜ |
 | T4 | Fine-tuning, con división por partidos completos | ⬜ |
@@ -148,19 +148,26 @@ Las dos constantes que se eligieron a ciegas resultan ser las correctas:
   2 s sobre un pre-roll de 20 y un post-roll de 10. O sea que la imprecisión del modelo es
   irrelevante frente al tamaño del clip: cae dentro del margen por diseño.
 
-### Lo que **no** se sabe todavía
+### Contrastado contra el vídeo: **los seis son goles**
 
-**Si esos 6 momentos son goles de verdad.** Seis goles en doce minutos es mucho para
-fútbol corrido; si `videoGP.MP4` es un resumen, cuadra, y si es juego continuo, parte de
-esos GOAL son ocasiones que el modelo llama gol. Sin contrastarlo no hay precisión
-medida, solo una estructura coherente. **Es lo primero que hay que cerrar.**
+El propietario los revisó el 2026-09-20 y confirma que los seis momentos corresponden a
+goles reales. Con eso, sobre este vídeo y a umbral 0.2:
+
+**Precisión de GOAL: 6 de 6.** Ni un falso positivo, incluido el de confianza 0.255 —o
+sea que el umbral podría bajarse todavía más sin ensuciar—.
+
+Lo que **sigue sin medirse** es el recall: no se ha contado si el vídeo tenía más goles
+que el modelo no vio. Para las metas de E8 (recall ≥ 90 %, precisión ≥ 85 %) hace falta
+saber el denominador, y eso pide un partido completo con los goles anotados a mano. La
+precisión, que era la mitad más preocupante, está.
 
 Tampoco se sabe nada de FREE KICK: cero detecciones puede ser que no hubo ninguno o que
 la clase no dispara.
 
-**Veredicto**: suficiente para seguir. La estructura es coherente, la localización
-temporal es buena y el ruido se concentra en clases que no usamos (PASS, DRIVE y HIGH
-PASS son 207 de los 292). Se pasa a T5.
+**Veredicto**: el camino sigue, y con margen. Precisión 6/6 en goles, error temporal por
+debajo de la granularidad del clip, ruido concentrado en clases que no usamos (PASS,
+DRIVE y HIGH PASS son 207 de los 292) y una regla de fusión medida de regalo. Se pasa a
+T5: exportar a ONNX con su ficha.
 
 ## 2026-09-19 · T2 — datos de SoccerNet · ✅ la herramienta, ⬜ la descarga
 
