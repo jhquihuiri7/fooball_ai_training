@@ -295,6 +295,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--tdeed", type=Path, default=Path("third_party/T-DEED"))
     parser.add_argument("--config", default=DEFAULT_CONFIG)
+    parser.add_argument(
+        "--weights",
+        type=Path,
+        default=None,
+        metavar="FICHERO",
+        help=(
+            "el checkpoint_best.pt. Por defecto, donde lo busca el propio T-DEED: "
+            "checkpoints/<Dataset>/<config>/checkpoint_best.pt"
+        ),
+    )
     parser.add_argument("--out", type=Path, default=Path("modelo"))
     parser.add_argument("--name", default="tdeed-snb", help="nombre en el registro")
     parser.add_argument(
@@ -313,7 +323,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"clip      : {spec.input_shape} ({LAYOUT})")
         print(f"clases    : {len(spec.registry_classes)} con el fondo")
 
-        modelo = _load_tdeed(args.tdeed, args.config, spec)
+        modelo = _load_tdeed(args.tdeed, args.config, spec, args.weights)
         destino = export(build_wrapper(modelo, spec), spec, args.out / f"{args.name}.onnx")
         print(f"exportado : {destino} ({destino.stat().st_size / 1e6:.0f} MB)")
 
@@ -332,7 +342,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     return 0
 
 
-def _load_tdeed(tdeed: Path, config: str, spec: ExportSpec) -> Any:
+def _load_tdeed(tdeed: Path, config: str, spec: ExportSpec, weights: Path | None = None) -> Any:
     """Monta el `TDEEDModel` y le carga los pesos, como hace su `inference.py`."""
     import numpy as np  # noqa: PLC0415
     import torch  # noqa: PLC0415
@@ -352,10 +362,15 @@ def _load_tdeed(tdeed: Path, config: str, spec: ExportSpec) -> Any:
         modelo._model.update_pred_head(cabezas)  # noqa: SLF001
         modelo._num_classes = int(np.array(cabezas).sum())  # noqa: SLF001
 
-    pesos = tdeed / "checkpoints" / config.split("_", 1)[0] / config / "checkpoint_best.pt"
+    # Por defecto donde los busca el propio T-DEED, pero se puede decir otra ruta: en un
+    # cuaderno de Colab lo normal es tenerlos sueltos en /content y no montar su arbol.
+    pesos = (
+        weights or tdeed / "checkpoints" / config.split("_", 1)[0] / config / "checkpoint_best.pt"
+    )
     if not pesos.is_file():
-        msg = f"no están los pesos en {pesos}"
+        msg = f"no están los pesos en {pesos.resolve()} (se pueden pasar con --weights)"
         raise ExportError(msg)
+    print(f"pesos     : {pesos}")
     modelo.load(torch.load(str(pesos)))
     return modelo._model  # noqa: SLF001
 
