@@ -14,8 +14,8 @@ Leyenda: ✅ hecha · 🚧 en curso · ⛔ bloqueada · ⬜ pendiente
 | **T2** | Datos de SoccerNet | ✅ herramienta · ✅ tarea elegida ([ADR 0001](DECISIONS/0001-ball-action-spotting-sin-corner.md)) · ⬜ descarga |
 | T3 | Reducir a las clases que interesan | ⬜ |
 | T4 | Fine-tuning, con división por partidos completos | ⬜ |
-| T5 | Export a ONNX con shapes estáticas **y su ficha** | ⬜ |
-| T6 | Verificación numérica torch vs onnxruntime (< 1e-3) | ⬜ |
+| T5 | Export a ONNX con shapes estáticas **y su ficha** | ✅ escrito · ⬜ sin correr (falta Colab) |
+| T6 | Verificación numérica torch vs onnxruntime (< 1e-3) | ✅ escrita dentro de T5 · ⬜ sin correr |
 
 ---
 
@@ -101,6 +101,62 @@ la confianza.
 proyecto suyo, así que el tope de 15 GB de Drive deja de ser un problema para T4.
 
 ---
+
+## 2026-09-20 · T5 y T6 — el export y su verificación · ✅ escritos, ⬜ sin correr
+
+`tools/export_onnx.py`. Corre en Colab, donde vive torch. **No se ha ejecutado**: se
+escribió leyendo el código de T-DEED, no corriéndolo.
+
+### Tres cosas del modelo que decidieron el diseño, y las tres se descubrieron leyendo
+
+**1. El modelo normaliza por dentro.** Su `forward` hace `x / 255` y después la
+estandarización de ImageNet. O sea que el `.onnx` espera píxeles **en crudo, 0-255**, y la
+ficha declara `scale: 1`, `mean: [0,0,0]`, `std: [1,1,1]`. Copiar ahí los valores de
+ImageNet —que es lo que uno haría mirando el paper— normalizaría dos veces. No da error:
+hunde el score y a otra cosa.
+
+**2. Tiene dos cabezas.** Se preentrena en SoccerNet (17 clases) y se afina en
+SoccerNetBall (12); la capa final emite las dos concatenadas. La nuestra es la primera,
+`1 + 12` columnas contando el fondo. El recorte va **dentro del grafo**: es un `Slice`
+estático, exporta limpio, y así el repo de detección no sabe nada de esto.
+
+**3. El desplazamiento no cabe en el grafo, y es lo importante.** El modelo emite, además
+de las puntuaciones, un desplazamiento temporal por frame; su post-proceso lo aplica con
+un **doble bucle de Python con índices que dependen de los datos**. Trazar eso a ONNX
+hornearía los desplazamientos del clip de ejemplo dentro del grafo: no fallaría, y daría
+mal todos los demás clips.
+
+Así que el `.onnx` saca **dos salidas** —`logits` y `displacement`— y el desplazamiento lo
+aplicará el spotter, en numpy, donde se puede probar. La ficha lo declara con
+`meaning: displacement`.
+
+### La columna 0 se llama `normal_play` a propósito
+
+El modelo usa la primera columna como fondo. En la ficha se llama `normal_play`, que es
+exactamente el nombre que el spotter del repo de detección conoce como la clase que nunca
+produce candidatos. No es casualidad: es el contrato, y hace que la clase de fondo se
+excluya sola sin que nadie configure nada.
+
+### Probado lo que se puede probar sin torch, y el contrato entre repos
+
+La generación de la ficha se prueba contra un `.onnx` sintético: que las formas salgan del
+fichero y no de la configuración, que no se vuelva a normalizar el píxel, que la salida
+del desplazamiento quede marcada y que el aviso de licencia esté.
+
+Y se comprobó **de punta a punta entre los dos repositorios**: la ficha que genera este
+repo la carga el de detección, le verifica el SHA-256, abre `VideoOnnxBackend` y monta el
+`Spotter` con su ventana de 8 s. De paso, su comprobación de clases cazó un stub que
+declaraba 13 clases y emitía 3 columnas — que es justo para lo que se escribió.
+
+### Lo que queda, y es una trampa conocida
+
+**El spotter todavía no aplica el desplazamiento.** La ficha lo declara y nadie lo lee,
+que es **exactamente** el fallo del `layout` que se arregló esta mañana. No se puede dejar
+así: sin aplicarlo, los eventos salen movidos hasta cuatro frames (`radi_displacement: 4`),
+o sea un tercio de segundo. Es lo siguiente en el repo de detección.
+
+**Siguiente paso**: correr el export en Colab con los pesos que ya están bajados. Si T6
+pasa, el `.onnx` cruza y se acabó el camino de ida.
 
 ## 2026-09-20 · T1 — la línea base, corrida · ✅
 

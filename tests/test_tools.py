@@ -7,8 +7,17 @@ descarga dice lo que va a costar antes de costarlo.
 
 from __future__ import annotations
 
+import numpy as np
+import onnx
 import pytest
+from onnx import TensorProto, helper
 
+from tools.export_onnx import (
+    BACKGROUND_CLASS,
+    ExportSpec,
+    registry_block,
+    sha256_of,
+)
 from tools.fetch_soccernet import (
     DEFAULT_TASK,
     PASSWORD_ENV,
@@ -169,3 +178,127 @@ def test_una_tarea_inventada_falla_sin_tocar_la_red(capsys):
     assert soccernet_main(["--task", "inventada"]) == 1
 
     assert "ERROR" in capsys.readouterr().out
+
+
+# --------------------------------------------------------------------------- #
+# T5: la ficha que cruza al repo de detección
+# --------------------------------------------------------------------------- #
+
+
+def _export_spec(**cambios):
+    base = {
+        "config": "SoccerNetBall_challenge1",
+        "clip_len": 100,
+        "height": 448,
+        "width": 796,
+        "classes": read_classes(_EVAL),
+        "sample_fps": 12.5,
+    }
+    return ExportSpec(**{**base, **cambios})
+
+
+def test_el_clip_que_se_exporta_es_estatico_y_ntchw():
+    # Ejes fijos a proposito: con ellos la aritmetica de formas del gate-shift se pliega
+    # a constantes en vez de quedarse en el grafo.
+    assert _export_spec().input_shape == (1, 100, 3, 448, 796)
+
+
+def test_la_cabeza_lleva_el_fondo_ademas_de_las_clases():
+    # El modelo emite 1 + 12 columnas para nuestra cabeza. Recortar a 12 se comeria el
+    # fondo y desplazaria todas las etiquetas una posicion.
+    spec = _export_spec()
+
+    assert spec.head_width == 13
+    assert len(spec.registry_classes) == 13
+
+
+def test_la_columna_cero_se_llama_como_el_fondo_del_spotter():
+    # No es casualidad: `SPOTTER_BACKGROUND_CLASS` del repo de deteccion es ese nombre, y
+    # asi la clase de fondo nunca produce candidatos sin que nadie configure nada.
+    spec = _export_spec()
+
+    assert spec.registry_classes[0] == BACKGROUND_CLASS
+    assert spec.registry_classes[1] == "PASS"
+    assert spec.registry_classes[-1] == "GOAL"
+
+
+def _onnx_de_prueba(path, forma=(1, 100, 3, 448, 796), clases=13):
+    """Un `.onnx` con la firma que tendra el exportado: dos salidas y ejes fijos.
+
+    `clases` es el ancho de la cabeza ya recortada, o sea el fondo mas las doce del
+    dataset. Tiene que cuadrar con la lista de `classes` de la ficha: el repo de deteccion
+    lo comprueba al cargar, y con razon.
+    """
+    ceros_logits = np.zeros((1, forma[1], clases), dtype=np.float32)
+    ceros_displ = np.zeros((1, forma[1]), dtype=np.float32)
+    graph = helper.make_graph(
+        [
+            helper.make_node(
+                "Constant",
+                [],
+                ["logits"],
+                value=helper.make_tensor(
+                    "l", TensorProto.FLOAT, ceros_logits.shape, ceros_logits.flatten()
+                ),
+            ),
+            helper.make_node(
+                "Constant",
+                [],
+                ["displacement"],
+                value=helper.make_tensor(
+                    "d", TensorProto.FLOAT, ceros_displ.shape, ceros_displ.flatten()
+                ),
+            ),
+        ],
+        "stub",
+        [helper.make_tensor_value_info("clip", TensorProto.FLOAT, list(forma))],
+        [
+            helper.make_tensor_value_info("logits", TensorProto.FLOAT, [1, forma[1], clases]),
+            helper.make_tensor_value_info("displacement", TensorProto.FLOAT, [1, forma[1]]),
+        ],
+    )
+    modelo = helper.make_model(graph, opset_imports=[helper.make_opsetid("", 17)])
+    modelo.ir_version = 10
+    onnx.save(modelo, str(path))
+    return path
+
+
+def test_la_ficha_sale_del_onnx_y_no_de_la_configuracion(tmp_path):
+    # Lo que importa es lo que hay en el fichero, porque es lo que se va a ejecutar.
+    ruta = _onnx_de_prueba(tmp_path / "tdeed-snb.onnx", forma=(1, 50, 3, 224, 398))
+
+    bloque = registry_block(ruta, _export_spec())
+
+    assert "shape: [1, 50, 3, 224, 398]" in bloque
+    assert "layout: NTCHW" in bloque
+
+
+def test_la_ficha_no_vuelve_a_normalizar_el_pixel(tmp_path):
+    # El modelo hace x/255 y las estadisticas de ImageNet por dentro. Copiar aqui los
+    # valores del paper normalizaria dos veces: no da error, solo hunde el score.
+    bloque = registry_block(_onnx_de_prueba(tmp_path / "m.onnx"), _export_spec())
+
+    assert "scale: 1" in bloque
+    assert "mean: [0.0, 0.0, 0.0]" in bloque
+    assert "std: [1.0, 1.0, 1.0]" in bloque
+
+
+def test_la_ficha_marca_la_salida_del_desplazamiento(tmp_path):
+    # El spotter tiene que aplicarlo antes de buscar picos, o los eventos salen movidos.
+    bloque = registry_block(_onnx_de_prueba(tmp_path / "m.onnx"), _export_spec())
+
+    assert "meaning: displacement" in bloque
+    assert "meaning: logits" in bloque
+
+
+def test_la_ficha_lleva_el_sha_del_fichero_exportado(tmp_path):
+    ruta = _onnx_de_prueba(tmp_path / "m.onnx")
+
+    assert f"sha256: {sha256_of(ruta)}" in registry_block(ruta, _export_spec())
+
+
+def test_la_ficha_avisa_de_que_los_pesos_no_son_para_vender(tmp_path):
+    bloque = registry_block(_onnx_de_prueba(tmp_path / "m.onnx"), _export_spec())
+
+    assert "GPL-3.0" in bloque
+    assert "SOLO PARA MEDIR" in bloque
