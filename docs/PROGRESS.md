@@ -11,7 +11,7 @@ Leyenda: ✅ hecha · 🚧 en curso · ⛔ bloqueada · ⬜ pendiente
 |---|---|---|
 | **T0** | Repo, entorno y contrato con el repo de detección | ✅ |
 | **T1** | T-DEED clonado y su firma leída | ✅ código · ⛔ inferencia: faltan pesos y GPU |
-| **T2** | Datos de SoccerNet | ✅ herramienta · ⬜ descarga: 19 GB y cuenta de Hugging Face |
+| **T2** | Datos de SoccerNet | ✅ herramienta · ✅ tarea elegida ([ADR 0001](DECISIONS/0001-ball-action-spotting-sin-corner.md)) · ⬜ descarga |
 | T3 | Reducir a las clases que interesan | ⬜ |
 | T4 | Fine-tuning, con división por partidos completos | ⬜ |
 | T5 | Export a ONNX con shapes estáticas **y su ficha** | ⬜ |
@@ -90,5 +90,12 @@ raro, y hay que mirarlo con calma antes de que nada entrenado sobre ellos entre 
 producto que se vende. Está anotado en `docs/DEPENDENCIES.md` junto al otro problema, el
 de que T-DEED es GPL-3.0 también.
 
-**Siguiente paso**: decidir entre las dos tareas —con córner y sin pesos, o con pesos y
-sin córner— y, en paralelo, conseguir el acceso de Hugging Face. Después T3.
+**Decidido el 2026-09-20**: Ball Action Spotting, y el córner fuera del primer modelo.
+Está razonado en el [ADR 0001](DECISIONS/0001-ball-action-spotting-sin-corner.md). Lo que
+manda es que solo esa tarea tiene pesos publicados, y sin pesos no hay línea base: la
+primera pregunta no es cuántas clases se detectan sino si esto funciona con nuestra
+cámara.
+
+**Siguiente paso**: la línea base. No necesita los 19 GB —`inference.py` corre sobre **un
+vídeo**— así que se puede hacer con metraje propio en cuanto haya pesos y una GPU. La
+descarga de SoccerNet solo hace falta para T4 y para medir contra su ground truth.
