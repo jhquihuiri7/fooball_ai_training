@@ -14,8 +14,8 @@ Leyenda: ✅ hecha · 🚧 en curso · ⛔ bloqueada · ⬜ pendiente
 | **T2** | Datos de SoccerNet | ✅ herramienta · ✅ tarea elegida ([ADR 0001](DECISIONS/0001-ball-action-spotting-sin-corner.md)) · ⬜ descarga |
 | T3 | Reducir a las clases que interesan | ⬜ |
 | T4 | Fine-tuning, con división por partidos completos | ⬜ |
-| T5 | Export a ONNX con shapes estáticas **y su ficha** | ✅ escrito · ⬜ sin correr (falta Colab) |
-| T6 | Verificación numérica torch vs onnxruntime (< 1e-3) | ✅ escrita dentro de T5 · ⬜ sin correr |
+| T5 | Export a ONNX con shapes estáticas **y su ficha** | ✅ |
+| T6 | Verificación numérica torch vs onnxruntime (< 1e-3) | ✅ **9,54e-06** |
 
 ---
 
@@ -101,6 +101,49 @@ la confianza.
 proyecto suyo, así que el tope de 15 GB de Drive deja de ser un problema para T4.
 
 ---
+
+## 2026-09-20 · T5 y T6, cerradas · ✅
+
+El export salió en la máquina de Vertex AI (`n1-highmem-8`, **CPU**, 50 GB):
+
+| | |
+|---|---|
+| Tamaño | **50 MB** (venía de 1028) |
+| Verificación numérica | **9,54e-06**, tolerancia 1e-03 |
+| Exportador | clásico, por trazado |
+| Capas gate-shift parcheadas | 11 |
+| SHA-256 | `dde3c1d8…` |
+
+**Los 50 MB son la prueba de que el arreglo era el correcto**: los pesos del modelo son
+49 MB, así que en el fichero ya no hay nada más que el modelo. El gigabyte eran ceros.
+
+**Y los 9,54e-06 son la respuesta a la pregunta que estaba abierta desde el principio.**
+Esa cifra compara el `.onnx` contra el modelo de torch **sin parchear**, así que dice dos
+cosas a la vez:
+
+1. **El gate-shift sobrevive al export.** Era la duda que hacía dudar de todo el camino de
+   T-DEED: su backbone `rny002_gsf` lleva desplazamiento temporal de canales, y no estaba
+   claro que llegara entero al otro lado. Llega, con dos órdenes de magnitud de margen
+   sobre la tolerancia.
+2. **El `Concat` es equivalente al `zeros_like`.** El parche no es una aproximación.
+
+**Lo que costó llegar**, por si vuelve a pasar con otro modelo:
+
+| Parada | Qué era |
+|---|---|
+| Colab, CPU | SIGKILL a los ~12 GB de RAM |
+| Colab, T4 | `torch.OutOfMemoryError` con 14,27 de 14,56 GB |
+| Vertex AI, 1.ª | Salió, pero 1,03 GB y `onnxruntime` no podía abrirlo |
+| `onnxsim` | Lo dejó en 2,4 GB, pasó del límite de protobuf y quedó ilegible |
+| `torch.export` | No traza `if (std == 0).any()` de `torchvision.Normalize` |
+| Vertex AI, 2.ª | **50 MB y 9,54e-06** |
+
+De las seis, solo dos eran del modelo. Las otras cuatro fueron entorno, y todas están
+resueltas dentro de `export_on_vm.sh` para que no haya que redescubrirlas.
+
+**Siguiente paso**: el artefacto cruza al repo de detección. Aquí quedan T3 (reducir
+clases) y T4 (fine-tuning con datos propios), que solo tienen sentido después de medir
+este modelo sobre partidos reales.
 
 ## 2026-09-20 · El gigabyte de ceros: causa y arreglo · 🚧
 
