@@ -37,12 +37,13 @@ from __future__ import annotations
 
 import argparse
 import sys
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Iterator, Sequence
 
 # Esta herramienta se lanza por su ruta desde otro directorio —en Colab, desde el de
 # T-DEED—, y entonces `sys.path[0]` es `tools/` y no la raiz del repo: sin esto, el
@@ -347,6 +348,25 @@ def main(argv: Sequence[str] | None = None) -> int:
     return 0
 
 
+@contextmanager
+def _cuda_optional(torch: Any, *, needed: bool) -> Iterator[None]:
+    """Deja que `.cuda()` no haga nada mientras dure el bloque, si no hay GPU.
+
+    `update_pred_head` de T-DEED llama a `.cuda()` sin preguntar, y lo único que hace
+    falta de esa función es que cambie la capa final. En una máquina sin GPU se neutraliza
+    solo ahí dentro, y el modelo vuelve a su dispositivo justo después.
+    """
+    if needed:
+        yield
+        return
+    original = torch.nn.Module.cuda
+    torch.nn.Module.cuda = lambda self, *_args, **_kwargs: self
+    try:
+        yield
+    finally:
+        torch.nn.Module.cuda = original
+
+
 def _load_checkpoint(torch: Any, path: Path) -> Any:
     """Carga el checkpoint con cualquier versión de torch.
 
@@ -383,11 +403,19 @@ def _load_tdeed(tdeed: Path, config: str, spec: ExportSpec, weights: Path | None
     argumentos.crop_dim = None if datos["crop_dim"] <= 0 else datos["crop_dim"]
     argumentos.pretrain = datos.get("pretrain")
 
-    modelo = TDEEDModel(args=argumentos)
+    # `TDEEDModel` usa `cuda` por defecto y su `update_pred_head` llama a `.cuda()` a
+    # fuego. Exportar no necesita GPU —trazar es una pasada hacia delante—, así que aquí
+    # se elige el dispositivo que haya y se neutraliza esa llamada cuando no hay ninguno.
+    # En CPU tarda más y sale exactamente el mismo grafo.
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    print(f"dispositivo: {device}")
+    modelo = TDEEDModel(device=device, args=argumentos)
     if argumentos.pretrain is not None:
         previas = load_classes(str(tdeed / "data" / argumentos.pretrain["dataset"] / "class.txt"))
         cabezas = [spec.head_width, len(previas) + 1]
-        modelo._model.update_pred_head(cabezas)  # noqa: SLF001
+        with _cuda_optional(torch, needed=device == "cuda"):
+            modelo._model.update_pred_head(cabezas)  # noqa: SLF001
+        modelo._model.to(device)  # noqa: SLF001
         modelo._num_classes = int(np.array(cabezas).sum())  # noqa: SLF001
 
     # Por defecto donde los busca el propio T-DEED, pero se puede decir otra ruta: en un
