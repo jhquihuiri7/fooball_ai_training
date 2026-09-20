@@ -44,6 +44,11 @@ from typing import TYPE_CHECKING, Any, Final
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+# Esta herramienta se lanza por su ruta desde otro directorio —en Colab, desde el de
+# T-DEED—, y entonces `sys.path[0]` es `tools/` y no la raiz del repo: sin esto, el
+# `import tools.fetch_tdeed` de mas abajo no encuentra nada.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 BACKGROUND_CLASS: Final = "normal_play"
 """Nombre que se le da a la columna 0, que el modelo usa como fondo.
 
@@ -299,6 +304,8 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    from tools.fetch_tdeed import TdeedError  # noqa: PLC0415
+
     args = build_parser().parse_args(argv)
     sys.path.insert(0, str(args.tdeed.resolve()))
     try:
@@ -317,7 +324,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         ficha = args.out / "registry-block.yaml"
         ficha.write_text(registry_block(destino, spec, name=args.name), encoding="utf-8")
         print(f"ficha     : {ficha}  <- pegar en models/registry.yaml del repo de detección")
-    except (ExportError, OSError) as exc:
+    except (ExportError, TdeedError, OSError) as exc:
+        # `TdeedError` tambien: lo que falla al leer la configuracion es tan de esperar
+        # como lo que falla al exportar, y una traza no le dice nada a quien lo corre.
         print(f"ERROR: {exc}")
         return 1
     return 0
