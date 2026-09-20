@@ -107,6 +107,44 @@ class ExportSpec:
         return (BACKGROUND_CLASS, *self.classes)
 
 
+def patch_gated_shift(model: Any) -> int:
+    """Reescribe el `forward` de las capas gate-shift para que no graben un gigabyte.
+
+    El original es este:
+
+        y = torch.zeros_like(x)
+        y[:, :fold] = self.gs(x[:, :fold])
+        y[:, fold:] = x[:, fold:]
+        return self.net(y)
+
+    Al trazar, `torch.zeros_like(x)` **se graba como un tensor de ceros del tamaño
+    completo de la activación**. Con once capas y clips de 100 frames a 448x796 eso fueron
+    978 MB de ceros en un `.onnx` cuyos pesos son 49 MB, y `onnxruntime` no podía ni abrir
+    la sesión. `onnxsim` tampoco lo arregla: lo dejó en 2,4 GB y pasó del límite de 2 GB
+    de protobuf.
+
+    Lo que hace esto es exactamente lo mismo con un `Concat`, que no materializa nada:
+
+        y = cat([gs(x[:, :fold]), x[:, fold:]], dim=1)
+
+    Es la misma operación escrita de otra forma, no una aproximación. Y que lo sea no se
+    da por hecho: la verificación numérica compara el `.onnx` contra el modelo **sin
+    parchear**, así que si no fueran equivalentes saltaría ahí.
+    """
+    import torch  # noqa: PLC0415
+
+    def forward(self: Any, x: Any) -> Any:
+        movido = self.gs(x[:, : self.fold_dim])
+        return self.net(torch.cat([movido, x[:, self.fold_dim :]], dim=1))
+
+    parcheadas = 0
+    for modulo in model.modules():
+        if type(modulo).__name__ == "GatedShift":
+            modulo.forward = forward.__get__(modulo, type(modulo))
+            parcheadas += 1
+    return parcheadas
+
+
 def build_wrapper(model: Any, spec: ExportSpec) -> Any:
     """Envuelve el modelo para que su `forward` acepte un clip y devuelva dos tensores.
 
@@ -227,31 +265,46 @@ def simplify(onnx_path: Path) -> tuple[int, int]:
     return antes, onnx_path.stat().st_size
 
 
-def verify(model: Any, onnx_path: Path, spec: ExportSpec) -> float:
-    """T6: el mismo clip por torch y por onnxruntime. Devuelve la diferencia máxima.
+def reference_clip(spec: ExportSpec) -> Any:
+    """El clip con el que se verifica: ruido, y siempre el mismo.
 
-    Con ruido y no con ceros: un tensor de ceros pasa por cualquier grafo roto, porque
-    casi todo multiplicado por cero sigue siendo cero.
+    Ruido y no ceros: un tensor de ceros pasa por cualquier grafo roto, porque casi todo
+    multiplicado por cero sigue siendo cero.
     """
     import numpy as np  # noqa: PLC0415
-    import onnxruntime as ort  # noqa: PLC0415
-    import torch  # noqa: PLC0415
 
-    generador = np.random.default_rng(seed=0)
-    clip = generador.integers(0, 256, size=spec.input_shape).astype(np.float32)
+    return np.random.default_rng(seed=0).integers(0, 256, size=spec.input_shape).astype(np.float32)
+
+
+def reference_outputs(model: Any, clip: Any) -> tuple[Any, Any]:
+    """Lo que da el modelo de torch **sin parchear**, para comparar contra él después."""
+    import torch  # noqa: PLC0415
 
     tensor = torch.from_numpy(clip)
     if next(model.parameters()).is_cuda:
         tensor = tensor.cuda()
     with torch.no_grad():
-        torch_logits, torch_displ = model(tensor)
+        logits, displ = model(tensor)
+    return logits.cpu().numpy(), displ.cpu().numpy()
+
+
+def verify(reference: tuple[Any, Any], onnx_path: Path, clip: Any) -> float:
+    """T6: compara el `.onnx` con la referencia de torch. Devuelve la diferencia máxima.
+
+    La referencia se calcula **antes** de parchear las capas gate-shift, así que esto
+    comprueba dos cosas de una vez: que el export es fiel y que el parche del `Concat` es
+    de verdad equivalente al `zeros_like` original.
+    """
+    import numpy as np  # noqa: PLC0415
+    import onnxruntime as ort  # noqa: PLC0415
 
     sesion = ort.InferenceSession(str(onnx_path), providers=["CPUExecutionProvider"])
     onnx_logits, onnx_displ = sesion.run(None, {INPUT_NAME: clip})
+    torch_logits, torch_displ = reference
 
     peor = max(
-        float(np.abs(torch_logits.cpu().numpy() - onnx_logits).max()),
-        float(np.abs(torch_displ.cpu().numpy() - onnx_displ).max()),
+        float(np.abs(torch_logits - onnx_logits).max()),
+        float(np.abs(torch_displ - onnx_displ).max()),
     )
     if peor > VERIFY_TOLERANCE:
         msg = (
@@ -375,10 +428,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--exporter",
         choices=("auto", "dynamo", "legacy"),
-        default="auto",
+        default="legacy",
         help=(
-            "cual usar. `auto` prueba el de torch.export primero, que gasta mucha menos "
-            "memoria porque traza con tensores falsos, y cae al clasico si falla"
+            "cual usar. Por defecto el clasico: el de torch.export no puede con este "
+            "modelo porque `torchvision.Normalize` hace `if (std == 0).any()` dentro del "
+            "forward, y una rama que depende de datos no se puede exportar"
         ),
     )
     parser.add_argument(
@@ -387,9 +441,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="plegar constantes al exportar; cuesta mucha memoria y aporta poco",
     )
     parser.add_argument(
-        "--skip-simplify",
+        "--simplify",
         action="store_true",
-        help="no simplificar el grafo; sin esto el .onnx puede no poder ni abrirse",
+        help=(
+            "pasar onnxsim por el grafo. Apagado por defecto: sobre este modelo lo dejo "
+            "en 2,4 GB, paso del limite de 2 GB de protobuf y el .onnx quedo ilegible"
+        ),
     )
     parser.add_argument(
         "--skip-verify", action="store_true", help="exportar sin comparar contra torch (T6)"
@@ -408,6 +465,18 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"clases    : {len(spec.registry_classes)} con el fondo")
 
         modelo = _load_tdeed(args.tdeed, args.config, spec, args.weights)
+
+        # La referencia se toma ANTES de parchear: es contra el modelo original contra lo
+        # que hay que comparar, no contra la versión que se exporta.
+        clip = referencia = None
+        if not args.skip_verify:
+            print("referencia: ejecutando el modelo sin parchear...")
+            clip = reference_clip(spec)
+            referencia = reference_outputs(build_wrapper(modelo, spec), clip)
+
+        parcheadas = patch_gated_shift(modelo)
+        print(f"gate-shift: {parcheadas} capas con `Concat` en vez de `zeros_like`")
+
         destino = export(
             build_wrapper(modelo, spec),
             spec,
@@ -417,12 +486,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         print(f"exportado : {destino} ({destino.stat().st_size / 1e6:.0f} MB)")
 
-        if not args.skip_simplify:
+        if args.simplify:
             antes, despues = simplify(destino)
             print(f"simplificado: {antes / 1e6:.0f} MB -> {despues / 1e6:.0f} MB")
 
-        if not args.skip_verify:
-            peor = verify(build_wrapper(modelo, spec), destino, spec)
+        if referencia is not None:
+            peor = verify(referencia, destino, clip)
             print(f"verificado: diferencia máxima {peor:.2e} (tolerancia {VERIFY_TOLERANCE:.0e})")
 
         ficha = args.out / "registry-block.yaml"

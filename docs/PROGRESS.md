@@ -102,6 +102,43 @@ proyecto suyo, así que el tope de 15 GB de Drive deja de ser un problema para T
 
 ---
 
+## 2026-09-20 · El gigabyte de ceros: causa y arreglo · 🚧
+
+Segunda vuelta del export, con datos de verdad. Tres cosas quedaron claras:
+
+**1. El exportador de `torch.export` no puede con este modelo, y se sabe por qué.** Falla
+en `standarize`, dentro de `torchvision.Normalize`:
+
+    if (std == 0).any():
+
+Es una rama que depende del **valor** de un tensor. `torch.export` la convierte en un
+símbolo sin respaldo (`Sym(Eq(u0, 1))`) y se rinde. Pasa a ser `legacy` por defecto: ya no
+es una preferencia, es que el otro no puede.
+
+**2. `onnxsim` empeora el problema.** Sobre este grafo lo dejó en **2,4 GB**, pasó del
+límite de 2 GB de protobuf, lo guardó como datos externos y el resultado ni se pudo
+parsear. Pasa a ser opt-in con esa advertencia escrita; §42.1 lo prescribe en general, y
+en general está bien, pero aquí no.
+
+**3. El gigabyte de ceros se quita en el modelo, no en el exportador.** Su origen:
+
+    y = torch.zeros_like(x)          # <- esto se graba entero al trazar
+    y[:, :fold] = self.gs(x[:, :fold])
+    y[:, fold:] = x[:, fold:]
+
+Escrito con un `Concat` es la misma operación y no materializa nada:
+
+    y = cat([gs(x[:, :fold]), x[:, fold:]], dim=1)
+
+`patch_gated_shift` reescribe el `forward` de las once capas antes de exportar.
+
+**Y que sea equivalente no se da por hecho.** La referencia de la verificación numérica se
+calcula ahora **antes** de parchear, así que T6 comprueba dos cosas de una vez: que el
+export es fiel y que el `Concat` hace lo mismo que el `zeros_like`. Si el parche estuviera
+mal, saltaría ahí.
+
+**Sin ejecutar todavía.**
+
 ## 2026-09-20 · El export salió, y salió inservible · ⚠️ arreglado con `onnxsim`
 
 El export terminó en la máquina de Vertex AI (`n1-highmem-8`, CPU) y **la verificación
