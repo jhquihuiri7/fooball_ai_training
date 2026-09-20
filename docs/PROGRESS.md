@@ -10,7 +10,7 @@ Leyenda: ✅ hecha · 🚧 en curso · ⛔ bloqueada · ⬜ pendiente
 | TASK | Qué | Estado |
 |---|---|---|
 | **T0** | Repo, entorno y contrato con el repo de detección | ✅ |
-| **T1** | T-DEED clonado, su firma leída y el notebook de la línea base | ✅ código · 🚧 inferencia: el notebook está, falta correrlo |
+| **T1** | T-DEED clonado, su firma leída y la línea base corrida | ✅ · ⬜ falta contrastar los instantes contra el vídeo |
 | **T2** | Datos de SoccerNet | ✅ herramienta · ✅ tarea elegida ([ADR 0001](DECISIONS/0001-ball-action-spotting-sin-corner.md)) · ⬜ descarga |
 | T3 | Reducir a las clases que interesan | ⬜ |
 | T4 | Fine-tuning, con división por partidos completos | ⬜ |
@@ -83,7 +83,16 @@ paper?» sino «¿ve algo en nuestra cámara?».
    fps el clip le llega a 15 y el modelo ve la jugada acelerada respecto a todo lo que
    aprendió. No da error, solo acierta menos.
 3. **No instalar su `requirements.txt`.** Pinea `torch==2.3.1` y `numpy==1.26.4` y pelea
-   con Colab. Bastan `timm`, `tabulate` y `wandb` —que `inference.py` importa y no usa—.
+   con Colab. Bastan `timm`, `tabulate`, `wandb` —que `inference.py` importa y no usa— y
+   `SoccerNet`, que **no está en su `requirements.txt`** y hace falta igual (ver abajo).
+
+**Primera ejecución, 2026-09-20**: muere en el import, `ModuleNotFoundError: No module
+named 'SoccerNet'` desde `util/eval.py:13`. Es un fallo de su `requirements.txt`, que no
+lista el paquete aunque `util/eval.py` lo importe arriba del todo y `inference.py` importe
+ese módulo. Se instala con `--no-deps`: el paquete arrastra `boto3`, `scikit-video` y
+`pycocoevalcap`, y de todo él solo se usan `average_mAP` y `LoadJsonFromZip`, que se
+importan con numpy y tqdm y nada más —comprobado en el entorno local—. Ya estaba en
+`docs/DEPENDENCIES.md` (MIT el paquete, otra cosa los datos), así que no cambia la tabla.
 
 La salida cae en `inference_output/results_inference.json` con el frame nativo, la clase y
 la confianza.
@@ -92,6 +101,66 @@ la confianza.
 proyecto suyo, así que el tope de 15 GB de Drive deja de ser un problema para T4.
 
 ---
+
+## 2026-09-20 · T1 — la línea base, corrida · ✅
+
+**Ejecutada por el propietario en Colab** con los pesos publicados de
+`SoccerNetBall_challenge1` sobre `videoGP.MP4` (11 min 50 s, 1280×720, 29,97 fps
+convertidos a 25). Umbral 0.2.
+
+### Lo que salió
+
+**292 eventos** en 11:50. Por clase: PASS 97, DRIVE 63, HIGH PASS 47, OUT 30, SHOT 22,
+BALL PLAYER BLOCK 14, GOAL 10, THROW IN 4, CROSS 3, HEADER 2. **FREE KICK: ninguno**, y
+PLAYER SUCCESSFUL TACKLE tampoco.
+
+Tras aplicar el NMS temporal de 2 s que usa el spotter, las 10 detecciones de GOAL se
+quedan en **6 momentos** y las 22 de SHOT en **19**:
+
+| GOAL | confianza |
+|---|---|
+| 02:05 | 0.599 |
+| 03:24 | 0.581 |
+| 04:24 | **0.962** |
+| 05:28 | **0.888** |
+| 06:00 | 0.255 |
+| 07:57 | **0.888** |
+
+### El hallazgo, y es el bueno
+
+**Los 10 GOAL, sin una sola excepción, van precedidos de un SHOT entre 0,24 y 2,16 s
+antes.** Eso no lo produce un modelo disparando al azar: es la estructura de una jugada
+real, tiro y después gol, y aparece las diez veces.
+
+De ahí sale una regla de fusión que **no hay que inventarse, ya está medida**: el par
+«SHOT seguido de GOAL en menos de ~2,5 s» es mucho más fuerte que un GOAL suelto. Es
+gratis de implementar y es justo lo que el documento de origen pedía para reducir falsos
+positivos.
+
+### Lo que esto valida del repo de detección
+
+Las dos constantes que se eligieron a ciegas resultan ser las correctas:
+
+- `SPOTTER_NMS_S = 2.0` colapsa exactamente las crestas de este modelo: los pares de GOAL
+  separados 0,88–1,12 s se funden en uno, y los momentos distintos (a más de 50 s) se
+  conservan. Sin él saldrían 10 clips donde hay 6 jugadas.
+- El error temporal está **por debajo de 2 s**, y el clip se corta con granularidad de
+  2 s sobre un pre-roll de 20 y un post-roll de 10. O sea que la imprecisión del modelo es
+  irrelevante frente al tamaño del clip: cae dentro del margen por diseño.
+
+### Lo que **no** se sabe todavía
+
+**Si esos 6 momentos son goles de verdad.** Seis goles en doce minutos es mucho para
+fútbol corrido; si `videoGP.MP4` es un resumen, cuadra, y si es juego continuo, parte de
+esos GOAL son ocasiones que el modelo llama gol. Sin contrastarlo no hay precisión
+medida, solo una estructura coherente. **Es lo primero que hay que cerrar.**
+
+Tampoco se sabe nada de FREE KICK: cero detecciones puede ser que no hubo ninguno o que
+la clase no dispara.
+
+**Veredicto**: suficiente para seguir. La estructura es coherente, la localización
+temporal es buena y el ruido se concentra en clases que no usamos (PASS, DRIVE y HIGH
+PASS son 207 de los 292). Se pasa a T5.
 
 ## 2026-09-19 · T2 — datos de SoccerNet · ✅ la herramienta, ⬜ la descarga
 
