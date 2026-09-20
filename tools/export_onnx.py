@@ -198,6 +198,35 @@ def export(
     raise ExportError(msg)
 
 
+def simplify(onnx_path: Path) -> tuple[int, int]:
+    """Simplifica el grafo en sitio. Devuelve `(bytes antes, bytes después)`.
+
+    Es el paso de §42.1 del blueprint entre el export y la verificación, y aquí no es
+    cosmético: **sin él el modelo no se puede ni abrir**. El `torch.zeros_like(x)` de cada
+    capa gate-shift se graba al trazar como un tensor de ceros del tamaño completo de la
+    activación, y con once capas y clips de 100 frames eso fueron 978 MB de ceros en un
+    modelo cuyos pesos son 49 MB. `onnxruntime` se quedó sin memoria al inicializar la
+    sesión, en una máquina donde el modelo debería caber de sobra.
+
+    Va en un paso aparte y no dentro del export (`do_constant_folding`) a propósito: así
+    su pico de memoria no se suma al del trazado, que es lo que no cabía en Colab.
+    """
+    import onnx  # noqa: PLC0415
+    from onnxsim import simplify as onnxsim_simplify  # noqa: PLC0415
+
+    antes = onnx_path.stat().st_size
+    modelo = onnx.load(str(onnx_path))
+    simplificado, correcto = onnxsim_simplify(modelo)
+    if not correcto:
+        msg = (
+            "onnxsim dice que el grafo simplificado no equivale al original. No se "
+            "sobrescribe nada: revisa el modelo antes de usarlo"
+        )
+        raise ExportError(msg)
+    onnx.save(simplificado, str(onnx_path))
+    return antes, onnx_path.stat().st_size
+
+
 def verify(model: Any, onnx_path: Path, spec: ExportSpec) -> float:
     """T6: el mismo clip por torch y por onnxruntime. Devuelve la diferencia máxima.
 
@@ -358,6 +387,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="plegar constantes al exportar; cuesta mucha memoria y aporta poco",
     )
     parser.add_argument(
+        "--skip-simplify",
+        action="store_true",
+        help="no simplificar el grafo; sin esto el .onnx puede no poder ni abrirse",
+    )
+    parser.add_argument(
         "--skip-verify", action="store_true", help="exportar sin comparar contra torch (T6)"
     )
     return parser
@@ -382,6 +416,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             exporter=args.exporter,
         )
         print(f"exportado : {destino} ({destino.stat().st_size / 1e6:.0f} MB)")
+
+        if not args.skip_simplify:
+            antes, despues = simplify(destino)
+            print(f"simplificado: {antes / 1e6:.0f} MB -> {despues / 1e6:.0f} MB")
 
         if not args.skip_verify:
             peor = verify(build_wrapper(modelo, spec), destino, spec)

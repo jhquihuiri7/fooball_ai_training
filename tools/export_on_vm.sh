@@ -41,7 +41,7 @@ if python3 -c "import torch" 2>/dev/null; then
 else
     pip install -q torch torchvision --index-url https://download.pytorch.org/whl/cpu
 fi
-pip install -q timm tabulate wandb onnx onnxruntime onnxscript
+pip install -q timm tabulate wandb onnx onnxruntime onnxscript onnxsim
 python3 - <<'PY'
 import onnx, onnxruntime, onnxscript, timm, torch
 print(f"torch {torch.__version__} · onnx {onnx.__version__} · onnxruntime {onnxruntime.__version__}")

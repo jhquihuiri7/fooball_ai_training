@@ -17,6 +17,7 @@ admiten y van con su aviso.
 | typer | MIT | CLI de las herramientas |
 | onnx | Apache-2.0 | Leer y comprobar el `.onnx` exportado |
 | onnxruntime | MIT | La mitad onnx de la verificación numérica |
+| onnxsim | MIT AND (Apache-2.0 OR BSD-2-Clause) | Simplifica el grafo exportado (§42.1). No es cosmético: sin él, el `.onnx` de T-DEED lleva 978 MB de ceros y `onnxruntime` no puede ni abrirlo |
 
 ## `train` — opt-in, varios GB, quiere GPU
 

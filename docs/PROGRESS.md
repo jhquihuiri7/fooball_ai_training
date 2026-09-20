@@ -102,6 +102,34 @@ proyecto suyo, así que el tope de 15 GB de Drive deja de ser un problema para T
 
 ---
 
+## 2026-09-20 · El export salió, y salió inservible · ⚠️ arreglado con `onnxsim`
+
+El export terminó en la máquina de Vertex AI (`n1-highmem-8`, CPU) y **la verificación
+numérica pasó**: el `.onnx` es fiel a torch. Pero el fichero salió de **1,03 GB** para un
+modelo de 12,3 M de parámetros, y al abrirlo en el repo de detección:
+
+    onnxruntime ... RUNTIME_EXCEPTION : Exception during initialization: bad allocation
+
+**Dónde estaba el gigabyte.** Los pesos de verdad son 49 MB en 534 constantes. Los otros
+**978 MB están en 1641 constantes dentro de nodos**, con formas de activación:
+`[100, 152, 28, 50]`, `[100, 56, 56, 100]`… todas dentro de las capas `conv1` de RegNet,
+o sea las que llevan gate-shift.
+
+Es el `torch.zeros_like(x)` de `GatedShift.forward`. Al trazar, esa llamada se graba como
+**un tensor de ceros del tamaño completo de la activación**. Once capas gate-shift y clips
+de 100 frames: un gigabyte de ceros escritos en el fichero.
+
+**El arreglo estaba en el blueprint y me lo salté.** §42.1 pone `onnxsim` entre el export
+y la verificación numérica. No es cosmético: es lo que dobla esos ceros y deja el grafo
+utilizable. Ahora `export_onnx.py` lo hace en un paso aparte, después de escribir el
+fichero y antes de verificar.
+
+**Aparte y no dentro del export** (`do_constant_folding`) a propósito: así su pico de
+memoria no se suma al del trazado. Ese pico junto es exactamente lo que no cabía en Colab.
+
+**Queda por medir**: cuánto baja el fichero y cuánta memoria y tiempo pide una inferencia.
+Eso último importa para el pod, que tiene que correr esto al lado del panel.
+
 ## 2026-09-20 · Dónde se puede exportar, y por qué no en Colab · ⚠️
 
 El export de T5 **no cabe en Colab**, ni en CPU ni con una T4. Está medido:
