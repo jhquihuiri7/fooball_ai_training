@@ -23,6 +23,7 @@ admiten y van con su aviso.
 | Paquete | Licencia | Notas |
 |---|---|---|
 | torch, torchvision | BSD-3 | Solo aquí. En el repo de detección está prohibido y lo verifica `.importlinter` |
+| onnxscript | MIT | Desde torch 2.6, `torch.onnx.export` lo importa siempre, use o no el exportador nuevo. Sin él, exportar muere con un `ModuleNotFoundError` |
 | SoccerNet | MIT (el paquete) | El **paquete** es MIT; los **datos** que descarga, no: ver abajo |
 | timm | Apache-2.0 | Backbones preentrenados. Cada checkpoint tiene su propia licencia, que hay que mirar una por una |
 | opencv-python-headless | Apache-2.0 | |

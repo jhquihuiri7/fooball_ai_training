@@ -146,19 +146,24 @@ def export(model: Any, spec: ExportSpec, destination: Path) -> Path:
     ejemplo = torch.zeros(spec.input_shape, dtype=torch.float32)
     if next(model.parameters()).is_cuda:
         ejemplo = ejemplo.cuda()
-    torch.onnx.export(
-        model,
-        (ejemplo,),
-        str(destination),
-        input_names=[INPUT_NAME],
-        output_names=[LOGITS_NAME, DISPLACEMENT_NAME],
-        opset_version=OPSET,
+    opciones: dict[str, Any] = {
+        "input_names": [INPUT_NAME],
+        "output_names": [LOGITS_NAME, DISPLACEMENT_NAME],
+        "opset_version": OPSET,
         # Nada dinámico a propósito (ADR 0013 §3 y BLUEPRINT §42.1): el clip siempre mide
         # lo mismo, y con ejes fijos la aritmética de formas del gate-shift se pliega a
         # constantes en vez de quedarse en el grafo.
-        dynamic_axes=None,
-        do_constant_folding=True,
-    )
+        "dynamic_axes": None,
+        "do_constant_folding": True,
+    }
+    try:
+        # `dynamo=False` fuerza el exportador clásico, por trazado. Es el que este diseño
+        # da por supuesto: el código de T-DEED tiene bucles de Python sobre el lote que
+        # con lote 1 se desenrollan solos al trazar. El de dynamo es más nuevo y aquí no
+        # aporta nada. En torch anterior a 2.5 ese argumento no existe y sobra.
+        torch.onnx.export(model, (ejemplo,), str(destination), dynamo=False, **opciones)
+    except TypeError:
+        torch.onnx.export(model, (ejemplo,), str(destination), **opciones)
     return destination
 
 
