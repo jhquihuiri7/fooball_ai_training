@@ -102,6 +102,34 @@ proyecto suyo, así que el tope de 15 GB de Drive deja de ser un problema para T
 
 ---
 
+## 2026-09-20 · Dónde se puede exportar, y por qué no en Colab · ⚠️
+
+El export de T5 **no cabe en Colab**, ni en CPU ni con una T4. Está medido:
+
+| Dónde | Qué pasa |
+|---|---|
+| Colab CPU (~12 GB de RAM) | SIGKILL: el vigilante de memoria mata el proceso |
+| Colab T4 (14,56 GB de VRAM) | `torch.OutOfMemoryError` con 14,27 GB ya ocupados |
+
+**Por qué**: el modelo mete los 100 frames de 448×796 en el backbone como **un solo
+lote**, y el trazador clásico mantiene vivas todas las activaciones intermedias mientras
+construye el grafo. Eso son ~15 GB, y no se puede reducir el clip: el codificador
+posicional del modelo está fijado a 100 frames.
+
+**Lo que hace falta no es GPU, es memoria.** Trazar es una pasada hacia delante; en CPU
+sale exactamente el mismo grafo. Eso tiene dos consecuencias prácticas buenas: no hace
+falta pelearse con la cuota de GPU de GCP —que es un formulario y una espera— y una
+máquina de alta memoria cuesta una fracción de lo que cuesta una con acelerador.
+
+**La vía**: `tools/export_on_vm.sh` en una máquina de Vertex AI de alta memoria
+(`n1-highmem-8`, 52 GB, unos 0,47 $/h para un trabajo de minutos). Instala torch de CPU
+—200 MB en vez de 2,5 GB—, clona los dos repos, baja los pesos de GCS, exporta, verifica
+y sube el `.onnx` con su ficha de vuelta al bucket.
+
+**Queda por probar** si el exportador de `torch.export` —que traza con tensores falsos y
+casi no materializa nada— entra donde el clásico no. El script ya lo intenta primero, así
+que si en la máquina grande funciona, sabremos además que en Colab habría bastado con eso.
+
 ## 2026-09-20 · T5 y T6 — el export y su verificación · ✅ escritos, ⬜ sin correr
 
 `tools/export_onnx.py`. Corre en Colab, donde vive torch. **No se ha ejecutado**: se
