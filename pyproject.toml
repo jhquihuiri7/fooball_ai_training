@@ -50,6 +50,12 @@ default-groups = ["core", "dev"]
 line-length = 100
 target-version = "py312"
 
+[tool.ruff.format]
+# Los cuadernos se revisan igual con el linter, pero no se formatean: el formateador
+# parte cada argumento de una orden en su propia linea, y una celda de doce lineas para
+# un `git clone` no la lee nadie. En un cuaderno la legibilidad la pone quien lo escribe.
+exclude = ["notebooks/*.ipynb"]
+
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = [
@@ -69,7 +75,19 @@ ignore = [
 # Un notebook de Colab se lee y se ejecuta a mano, y sus celdas mezclan Python con magias
 # de shell. Anotar tipos, abrir con `Path.open` o partir una linea de ffmpeg en dos no lo
 # mejora: lo hace mas dificil de leer, que es justo lo contrario de para lo que existe.
-"notebooks/*.ipynb" = ["ANN", "E501", "PTH123", "SIM115", "PLC0207", "I001"]
+"notebooks/*.ipynb" = [
+    "ANN",      # anotar tipos en un cuaderno no ayuda a leerlo
+    "E402",     # las celdas importan donde toca contarlo, no al principio del fichero
+    "E501",     # las magias de shell no se parten en dos
+    "EM102",    # un `raise` con su mensaje dentro se lee mejor en una celda
+    "ERA001",   # hay lineas comentadas a proposito: son las alternativas a elegir
+    "F401",     # se importa para comprobar que esta instalado, no para usarlo
+    "I001",
+    "PLC0207",
+    "PTH123",
+    "SIM115",
+    "TRY003",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
