@@ -139,8 +139,15 @@ def build_wrapper(model: Any, spec: ExportSpec) -> Any:
     return envuelto
 
 
-def export(model: Any, spec: ExportSpec, destination: Path) -> Path:
-    """Escribe el `.onnx` con formas estáticas. Devuelve su ruta."""
+def export(model: Any, spec: ExportSpec, destination: Path, *, fold: bool = False) -> Path:
+    """Escribe el `.onnx` con formas estáticas. Devuelve su ruta.
+
+    `fold` es el plegado de constantes. Va **apagado por defecto**: es un pico de memoria
+    grande —materializa tensores intermedios mientras construye el grafo— y con un clip de
+    100 frames eso es lo que se lleva por delante la RAM del sistema, no la de la GPU.
+    Lo que aporta es velocidad de inferencia, y `onnxruntime` vuelve a optimizar el grafo
+    al cargarlo, así que se pierde poco. Se puede encender con `--fold` si hace falta.
+    """
     import torch  # noqa: PLC0415
 
     destination.parent.mkdir(parents=True, exist_ok=True)
@@ -155,7 +162,7 @@ def export(model: Any, spec: ExportSpec, destination: Path) -> Path:
         # lo mismo, y con ejes fijos la aritmética de formas del gate-shift se pliega a
         # constantes en vez de quedarse en el grafo.
         "dynamic_axes": None,
-        "do_constant_folding": True,
+        "do_constant_folding": fold,
     }
     try:
         # `dynamo=False` fuerza el exportador clásico, por trazado. Es el que este diseño
@@ -314,6 +321,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--out", type=Path, default=Path("modelo"))
     parser.add_argument("--name", default="tdeed-snb", help="nombre en el registro")
     parser.add_argument(
+        "--fold",
+        action="store_true",
+        help="plegar constantes al exportar; cuesta mucha memoria y aporta poco",
+    )
+    parser.add_argument(
         "--skip-verify", action="store_true", help="exportar sin comparar contra torch (T6)"
     )
     return parser
@@ -330,7 +342,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"clases    : {len(spec.registry_classes)} con el fondo")
 
         modelo = _load_tdeed(args.tdeed, args.config, spec, args.weights)
-        destino = export(build_wrapper(modelo, spec), spec, args.out / f"{args.name}.onnx")
+        destino = export(
+            build_wrapper(modelo, spec), spec, args.out / f"{args.name}.onnx", fold=args.fold
+        )
         print(f"exportado : {destino} ({destino.stat().st_size / 1e6:.0f} MB)")
 
         if not args.skip_verify:
@@ -409,6 +423,9 @@ def _load_tdeed(tdeed: Path, config: str, spec: ExportSpec, weights: Path | None
     # En CPU tarda más y sale exactamente el mismo grafo.
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"dispositivo: {device}")
+    if device == "cuda":
+        libre, total = torch.cuda.mem_get_info()
+        print(f"vram      : {libre / 1e9:.1f} GB libres de {total / 1e9:.1f}")
     modelo = TDEEDModel(device=device, args=argumentos)
     if argumentos.pretrain is not None:
         previas = load_classes(str(tdeed / "data" / argumentos.pretrain["dataset"] / "class.txt"))
