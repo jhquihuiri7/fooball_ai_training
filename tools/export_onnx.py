@@ -139,7 +139,9 @@ def build_wrapper(model: Any, spec: ExportSpec) -> Any:
     return envuelto
 
 
-def export(model: Any, spec: ExportSpec, destination: Path, *, fold: bool = False) -> Path:
+def export(
+    model: Any, spec: ExportSpec, destination: Path, *, fold: bool = False, exporter: str = "auto"
+) -> Path:
     """Escribe el `.onnx` con formas estáticas. Devuelve su ruta.
 
     `fold` es el plegado de constantes. Va **apagado por defecto**: es un pico de memoria
@@ -164,15 +166,36 @@ def export(model: Any, spec: ExportSpec, destination: Path, *, fold: bool = Fals
         "dynamic_axes": None,
         "do_constant_folding": fold,
     }
-    try:
-        # `dynamo=False` fuerza el exportador clásico, por trazado. Es el que este diseño
-        # da por supuesto: el código de T-DEED tiene bucles de Python sobre el lote que
-        # con lote 1 se desenrollan solos al trazar. El de dynamo es más nuevo y aquí no
-        # aporta nada. En torch anterior a 2.5 ese argumento no existe y sobra.
-        torch.onnx.export(model, (ejemplo,), str(destination), dynamo=False, **opciones)
-    except TypeError:
-        torch.onnx.export(model, (ejemplo,), str(destination), **opciones)
-    return destination
+    # El orden importa, y es por memoria. El exportador clásico **ejecuta** el modelo para
+    # trazarlo y mantiene vivas todas las activaciones intermedias: con 100 frames de
+    # 448x796 por el backbone eso son más de 14 GB y no cabe ni en una T4. El de
+    # `torch.export` propaga formas con tensores falsos, sin materializar casi nada, así
+    # que se intenta primero. Si falla —tiene menos rodaje con código como el de T-DEED—,
+    # se cae al clásico, que es el que funciona si hay memoria de sobra.
+    intentos = (
+        {"dynamo": True, "legacy": False}
+        if exporter == "auto"
+        else {exporter: exporter == "dynamo"}
+    )
+    ultimo: Exception | None = None
+    for nombre, dynamo in intentos.items():
+        try:
+            print(f"exportando: con el exportador {nombre}...")
+            torch.onnx.export(model, (ejemplo,), str(destination), dynamo=dynamo, **opciones)
+        except TypeError:
+            # torch anterior a 2.5 no conoce `dynamo`: solo existe el clásico.
+            torch.onnx.export(model, (ejemplo,), str(destination), **opciones)
+            return destination
+        except Exception as exc:  # noqa: BLE001 - se prueba el siguiente y se explica al final
+            print(f"            {nombre} no pudo: {type(exc).__name__}: {str(exc)[:200]}")
+            ultimo = exc
+            if hasattr(torch, "cuda") and torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            continue
+        else:
+            return destination
+    msg = f"ningún exportador pudo con el modelo. El último dijo: {ultimo}"
+    raise ExportError(msg)
 
 
 def verify(model: Any, onnx_path: Path, spec: ExportSpec) -> float:
@@ -321,6 +344,15 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--out", type=Path, default=Path("modelo"))
     parser.add_argument("--name", default="tdeed-snb", help="nombre en el registro")
     parser.add_argument(
+        "--exporter",
+        choices=("auto", "dynamo", "legacy"),
+        default="auto",
+        help=(
+            "cual usar. `auto` prueba el de torch.export primero, que gasta mucha menos "
+            "memoria porque traza con tensores falsos, y cae al clasico si falla"
+        ),
+    )
+    parser.add_argument(
         "--fold",
         action="store_true",
         help="plegar constantes al exportar; cuesta mucha memoria y aporta poco",
@@ -343,7 +375,11 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         modelo = _load_tdeed(args.tdeed, args.config, spec, args.weights)
         destino = export(
-            build_wrapper(modelo, spec), spec, args.out / f"{args.name}.onnx", fold=args.fold
+            build_wrapper(modelo, spec),
+            spec,
+            args.out / f"{args.name}.onnx",
+            fold=args.fold,
+            exporter=args.exporter,
         )
         print(f"exportado : {destino} ({destino.stat().st_size / 1e6:.0f} MB)")
 
