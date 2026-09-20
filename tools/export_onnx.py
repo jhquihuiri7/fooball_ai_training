@@ -342,6 +342,29 @@ def main(argv: Sequence[str] | None = None) -> int:
     return 0
 
 
+def _load_checkpoint(torch: Any, path: Path) -> Any:
+    """Carga el checkpoint con cualquier versión de torch.
+
+    Desde torch 2.6, `torch.load` trae `weights_only=True` por defecto y se niega a
+    deserializar nada que no sean tensores. El checkpoint de T-DEED lleva además su
+    estado de entrenamiento, así que con torch nuevo falla y con viejo no: depende de la
+    versión que le haya tocado a Colab ese día.
+
+    Se reintenta desacotado **solo** tras ese fallo concreto. Deserializar un pickle
+    ejecuta lo que traiga dentro, y esto se hace porque el fichero viene de donde lo
+    publica T-DEED y quien lo corre decidió confiar en él; con un checkpoint de origen
+    desconocido no debería hacerse.
+    """
+    try:
+        return torch.load(str(path), map_location="cpu")
+    except Exception as exc:
+        if "weights_only" not in str(exc):
+            msg = f"no se pudo leer el checkpoint {path}: {exc}"
+            raise ExportError(msg) from exc
+        print("aviso     : el checkpoint lleva más que tensores; se lee sin `weights_only`")
+        return torch.load(str(path), map_location="cpu", weights_only=False)
+
+
 def _load_tdeed(tdeed: Path, config: str, spec: ExportSpec, weights: Path | None = None) -> Any:
     """Monta el `TDEEDModel` y le carga los pesos, como hace su `inference.py`."""
     import numpy as np  # noqa: PLC0415
@@ -371,7 +394,7 @@ def _load_tdeed(tdeed: Path, config: str, spec: ExportSpec, weights: Path | None
         msg = f"no están los pesos en {pesos.resolve()} (se pueden pasar con --weights)"
         raise ExportError(msg)
     print(f"pesos     : {pesos}")
-    modelo.load(torch.load(str(pesos)))
+    modelo.load(_load_checkpoint(torch, pesos))
     return modelo._model  # noqa: SLF001
 
 
