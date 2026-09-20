@@ -1,0 +1,24 @@
+# --- Entornos y caches ---
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# --- T-DEED: GPL-3.0. Se clona para usarlo, NO se vendoriza ni se redistribuye ---
+third_party/
+
+# --- Datos: pesan, y los de SoccerNet estan bajo NDA ---
+datasets/
+*.mp4
+*.mkv
+*.npy
+*.npz
+
+# --- Artefactos ---
+models/
+*.onnx
+*.pt
+*.pth
+runs/
