@@ -45,6 +45,13 @@ train = [
     "calflops>=0.3",
 ]
 
+# apple — opt-in: uv sync --group train --group apple. Export a Core ML (ML-05). En Linux
+# convierte; en el Mac ademas predice. No hay ruedas para Windows: ahi el grupo no instala
+# nada y los tests de Core ML se saltan.
+apple = [
+    "coremltools>=9 ; sys_platform != 'win32'",
+]
+
 dev = [
     "pytest>=8.3",
     "ruff>=0.8",

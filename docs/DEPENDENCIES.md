@@ -36,6 +36,12 @@ admiten y van con su aviso.
 DEIM también lista `transformers` en su `requirements.txt`, pero su código no lo importa en
 el commit fijado: no se instala.
 
+## `apple` — opt-in, Linux y macOS (ML-05)
+
+| Paquete | Licencia | Notas |
+|---|---|---|
+| coremltools | BSD-3 | Convierte a `.mlpackage`: en Linux convierte, y en el Mac además predice. No tiene ruedas para Windows, así que el marcador lo deja fuera ahí. Arrastra attrs y cattrs (MIT) y pyaml (WTFPL). Ninguno viaja dentro del `.mlpackage` |
+
 ## Receta y pesos de los jugadores — se clonan y se bajan, fijados (ML-15)
 
 `uv run python tools/fetch_deim.py` los deja en `third_party/DEIM` y `models/pretrained/`,

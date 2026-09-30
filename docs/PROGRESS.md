@@ -13,7 +13,7 @@ aquí. Las que no llevan marca están ⬜.
 
 | EPIC | Qué | Tareas |
 |---|---|---|
-| ML-E1 | Infraestructura y contrato del repo | ML-01 ✅ · ML-02 ✅ · ML-03 · ML-04 · ML-05 |
+| ML-E1 | Infraestructura y contrato del repo | ML-01 ✅ · ML-02 ✅ · ML-03 · ML-04 · ML-05 🚧 |
 | ML-E2 | Campaña de datos: grabación, ingesta, extracción y anotación | ML-06 · ML-07 · ML-08 · ML-17 · ML-18 · ML-19 · ML-20 · ML-21 · ML-22 · ML-23 · ML-58 |
 | ML-E3 | Autoanotación con maestro y players-v1 | ML-24 · ML-25 · ML-26 · ML-27 · ML-28 · ML-29 · ML-30 · ML-31 |
 | ML-E4 | Jugadores: D-FINE-N a 1920×576 | ML-15 ✅ · ML-16 · ML-32 · ML-33 · ML-34 · ML-35 |
@@ -34,6 +34,43 @@ aquí. Las que no llevan marca están ⬜.
 | T4 | Fine-tuning, con división por partidos completos | ✖ cancelada ([ADR 0002](DECISIONS/0002-arquitectura-b-artefactos-y-entrenamiento.md)) |
 | T5 | Export a ONNX con shapes estáticas **y su ficha** | ✅ |
 | T6 | Verificación numérica torch vs onnxruntime (< 1e-3) | ✅ **9,54e-06** |
+
+---
+
+## 2026-09-30 · ML-05 — grupo `apple` con coremltools y el Mac de referencia · 🚧 falta Linux y el Mac
+
+**Hecho**
+- `pyproject.toml`: el grupo `apple`, que instala `coremltools>=9` salvo en Windows, donde no
+  hay ruedas. El lock resuelve `coremltools` 9.0.
+- `DEPENDENCIES.md`: `coremltools`, BSD-3, que arrastra attrs y cattrs (MIT) y pyaml
+  (WTFPL); ninguno viaja en el `.mlpackage`.
+- `docs/MAC.md`: qué se hace en el Mac y qué tarea lo pide, qué Mac (el de Alexander como
+  referencia, y un segundo para ML), los requisitos (Apple Silicon, macOS ≥15, Xcode 26,
+  uv, el mismo commit) y cómo se deja listo.
+- `tools/mac_smoke.py`: convierte una red de tres convs a mlprogram fp16 para iOS 18 con
+  formas fijas y la guarda. En macOS, además, predice con `CPU_AND_NE` y `CPU_ONLY` y sale
+  con error si alguna se aleja 1e-2 o más de torch en fp32. En Windows dice que no hay
+  `coremltools` y sale con 1.
+- `tests/test_mac_smoke.py`: cada parte se prueba donde se puede. La red de prueba, con
+  torch; convertir, con `coremltools`; predecir, solo en macOS; y el aviso, donde falta.
+
+**Ejecutado aquí (Windows)**
+- La red de prueba y el aviso de que falta `coremltools` pasan.
+- Los tests de convertir y de predecir **se saltan con su motivo**, que es lo que pide la
+  tarjeta para Windows.
+- `tools/mac_smoke.py` sale con 1 y con el mensaje.
+
+**Pendiente para el ✅**
+- **En Linux:** `uv sync --group train --group apple` y pytest. El test de convertir tiene
+  que pasar. Esta máquina no tiene WSL.
+- **En el Mac:** `uv run python tools/mac_smoke.py` con las dos diferencias < 1e-2. Se
+  anotan aquí con el modelo del Mac y las versiones de macOS y `coremltools`.
+
+ruff en verde y pytest con 109 tests y 2 saltados (eran 107).
+
+**Siguiente**: ML-09 (`export_coreml`) depende de esta. La parte pura de ML-09 (el zip
+determinista y los metadatos) se puede escribir ya, pero la tarea no pasa a ✅ hasta que
+ML-05 lo esté.
 
 ---
 
