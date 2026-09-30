@@ -17,7 +17,7 @@ aquí. Las que no llevan marca están ⬜.
 | ML-E2 | Campaña de datos: grabación, ingesta, extracción y anotación | ML-06 · ML-07 · ML-08 · ML-17 · ML-18 · ML-19 · ML-20 · ML-21 · ML-22 · ML-23 · ML-58 |
 | ML-E3 | Autoanotación con maestro y players-v1 | ML-24 · ML-25 · ML-26 · ML-27 · ML-28 · ML-29 · ML-30 · ML-31 |
 | ML-E4 | Jugadores: D-FINE-N a 1920×576 | ML-15 ✅ · ML-16 · ML-32 · ML-33 · ML-34 · ML-35 |
-| ML-E5 | Balón: heatmap ROI-lite de 3 frames en gris | ML-14 · ML-36 · ML-37 · ML-38 · ML-39 · ML-40 · ML-41 · ML-42 |
+| ML-E5 | Balón: heatmap ROI-lite de 3 frames en gris | ML-14 ✅ · ML-36 · ML-37 · ML-38 · ML-39 · ML-40 · ML-41 · ML-42 |
 | ML-E6 | Export a Core ML y validación | ML-09 · ML-10 · ML-11 · ML-12 · ML-13 · ML-43 · ML-45 |
 | ML-E7 | Spikes de modelo en el iPhone 17 | SPK-50 · SPK-51 · SPK-52 · SPK-53 · SPK-54 · SPK-56 |
 | ML-E8 | Eventos aprendidos N3 y N4 | ML-47 · ML-48 · ML-49 · ML-50 · ML-51 · ML-52 · ML-53 · ML-54 · ML-55 · ML-57 |
@@ -34,6 +34,60 @@ aquí. Las que no llevan marca están ⬜.
 | T4 | Fine-tuning, con división por partidos completos | ✖ cancelada ([ADR 0002](DECISIONS/0002-arquitectura-b-artefactos-y-entrenamiento.md)) |
 | T5 | Export a ONNX con shapes estáticas **y su ficha** | ✅ |
 | T6 | Verificación numérica torch vs onnxruntime (< 1e-3) | ✅ **9,54e-06** |
+
+---
+
+## 2026-09-30 · ML-14 — arquitectura ROI-lite (heatmap de 3 frames en gris) · ✅
+
+**Hecho**
+- `ftrain/ball/model.py`: `RoiLite` y `RoiLiteConfig`, diseño propio sin código ni pesos de
+  FootAndBall ni de WASB.
+  - **Tallo:** conv 3x3 de paso 2 a 16 canales.
+  - **Cuerpo:** 4 etapas `[16, 32, 64, 128]` a strides 2, 4, 8 y 16, con bloques de 3x3 +
+    1x1 densas, BatchNorm, ReLU y atajo residual. Los bloques son `(1, 2, 2, 2)`: la etapa
+    de stride 2 lleva uno solo porque es la más cara por píxel.
+  - **Decoder:** de arriba abajo hasta stride 2 (1x1, upsample nearest ×2, suma y 3x3).
+  - **Cabezas:** heatmap de 1 canal y offset de 2.
+  - **Ancho configurable:** se redondea a múltiplos de 16, con 16 de mínimo.
+- `ftrain/flops.py`: `count_macs` por hooks sobre `Conv2d`, `ConvTranspose2d` y `Linear`.
+  Solo necesita torch.
+- Constantes nuevas: `PIXEL_SCALE` (1/255 dentro del grafo, ADR 0020 §3) y
+  `ANE_CHANNEL_QUANTUM` (16).
+- `tests/test_ball_model.py`, con importorskip de torch. Comprueba:
+  - las formas del lote de ROIs y del mosaico;
+  - los dos presupuestos de MAC;
+  - que no hay Conv3d, GRU, LSTM ni RNN, y que todas las convs son densas;
+  - que los canales van de 16 en 16, salvo la entrada y las cabezas;
+  - el redondeo del ancho;
+  - el contador contra cuentas hechas a mano.
+
+**Decidido aquí, por ser lo mínimo**
+- **El heatmap sale en logits.** La sigmoide la pone el export (ML-42): la pérdida focal
+  de ML-39 la quiere fuera, y `heatmap_peaks` del repo de detección, con su umbral de 0,30,
+  espera 0-1. El ADR 0020 §3 solo saca del grafo la NMS, el `topk`, el `argmax` y los picos.
+- **El offset sale sin activar**, en fracciones de celda: canal 0 en x y 1 en y, como
+  `refine_offset` de REF-23.
+
+**Medido** (CPU, torch 2.14, ancho 1,0)
+
+| Entrada | MAC | Objetivo |
+|---|---|---|
+| ROI `[1,3,256,256]` | **0,515 G** | ≤1,0 G |
+| Mosaico `[1,3,896,1920]` | **13,5 G** | ≤17 G |
+| Parámetros | 594 k | — |
+
+Con ancho 1,5 sale 1,38 G en la ROI: se sale del presupuesto. El margen para crecer está
+en los bloques, no en el ancho.
+
+**Fuera**
+- La latencia en el ANE es de SPK-52, que también decide la altura del mosaico.
+- **El grupo `train` está instalado en esta máquina Windows** (torch 2.14 de CPU). Los
+  tests de torch ya no se saltan aquí.
+
+ruff en verde y pytest con 107 tests (eran 91).
+
+**Siguiente**: ML-05 (el grupo `apple`), y detrás ML-09. La pérdida y el conjunto del
+balón (ML-38 y ML-39) esperan a la campaña de datos.
 
 ---
 

@@ -56,6 +56,14 @@ BALL_HEATMAP_STRIDE: Final = 2
 `BALL_HEATMAP_STRIDE` en `libs/vision/constants.py` del repo de detección, que decodifica
 los picos: si no, las posiciones salen escaladas."""
 
+PIXEL_SCALE: Final = 1.0 / 255.0
+"""Escala del píxel dentro del modelo: la entrada llega en 0-255, tal como la deja Metal, y
+el propio grafo la lleva a 0-1 (ADR 0020 §3). Adimensional."""
+
+ANE_CHANNEL_QUANTUM: Final = 16
+"""Los canales internos de un modelo para el ANE son múltiplos de este número (ML-14):
+así la capa no paga relleno. Se exceptúan la entrada y las cabezas."""
+
 BALL_GAUSS_D_PX: Final = 2.5
 """Tamaño del gaussiano del objetivo del heatmap del balón, en píxeles de entrada. El plan
 no dice si es la sigma o el diámetro: lo fija ML-38 al construir el objetivo."""
