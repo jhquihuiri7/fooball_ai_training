@@ -13,7 +13,7 @@ aquí. Las que no llevan marca están ⬜.
 
 | EPIC | Qué | Tareas |
 |---|---|---|
-| ML-E1 | Infraestructura y contrato del repo | ML-01 ✅ · ML-02 · ML-03 · ML-04 · ML-05 |
+| ML-E1 | Infraestructura y contrato del repo | ML-01 ✅ · ML-02 ✅ · ML-03 · ML-04 · ML-05 |
 | ML-E2 | Campaña de datos: grabación, ingesta, extracción y anotación | ML-06 · ML-07 · ML-08 · ML-17 · ML-18 · ML-19 · ML-20 · ML-21 · ML-22 · ML-23 · ML-58 |
 | ML-E3 | Autoanotación con maestro y players-v1 | ML-24 · ML-25 · ML-26 · ML-27 · ML-28 · ML-29 · ML-30 · ML-31 |
 | ML-E4 | Jugadores: D-FINE-N a 1920×576 | ML-15 · ML-16 · ML-32 · ML-33 · ML-34 · ML-35 |
@@ -34,6 +34,48 @@ aquí. Las que no llevan marca están ⬜.
 | T4 | Fine-tuning, con división por partidos completos | ✖ cancelada ([ADR 0002](DECISIONS/0002-arquitectura-b-artefactos-y-entrenamiento.md)) |
 | T5 | Export a ONNX con shapes estáticas **y su ficha** | ✅ |
 | T6 | Verificación numérica torch vs onnxruntime (< 1e-3) | ✅ **9,54e-06** |
+
+---
+
+## 2026-09-30 · ML-02 — paquete `ftrain/`, constantes con unidades y guardia de licencias · ✅
+
+**Hecho**
+- `ftrain/`: la librería del repo, con `ftrain/constants.py`. Tiene las catorce constantes de
+  la tarjeta, cada una con su comentario, sus unidades y de dónde sale: las bandas de
+  distancia, el muestreo disperso, las clases de jugadores y del maestro, la entrada de
+  1920×576 y la escala de la franja, lo del balón (ROIs, frames, stride y gaussiano) y las
+  tres puertas del export.
+- `tests/test_guardia_licencias.py`: recorre con `ast` `ftrain/` y `tools/`, y falla si
+  algo trae `ultralytics` (AGPL) o T-DEED (GPL). Detecta tres cosas:
+  - los imports de `ultralytics` o de los paquetes `model` y `util` de T-DEED, también
+    dentro de una función o con `importlib.import_module` y `__import__`;
+  - una ruta a `third_party/` o a `T-DEED`.
+
+  Los imports relativos y los docstrings no cuentan. Las únicas excepciones son
+  `tools/fetch_tdeed.py` y `tools/export_onnx.py`, y un test comprueba que siguen
+  existiendo.
+- `tests/test_constants.py`: las bandas crecen de 0 a ∞; las clases no se repiten y van en
+  el orden declarado; la entrada es la franja 4K por su escala; las ROIs caben en la
+  rejilla del heatmap.
+- ruff: T201 (`print`) deja de estar ignorado en todo el repo. Solo lo está en `tools/` y
+  en los cuadernos, así que `ftrain/` no puede imprimir, como decidió el plan. Va anotado
+  en CLAUDE.md §2.
+- La cabecera y la descripción de `pyproject.toml` ya no dicen que el repo produce solo un
+  `.onnx`: se me pasó en ML-01.
+- ruff en verde y pytest con 75 tests (eran 25).
+
+**Fuera**
+- `BALL_GAUSS_D_PX = 2.5` es la «d» del plan, que no dice si es la sigma o el diámetro del
+  gaussiano. Lo fija ML-38 al construir el objetivo.
+- `tools/export_onnx.py` sigue con su propia tolerancia de 1e-3 en vez de
+  `ONNX_VERIFY_TOL`. Es de la línea base congelada; ML-13 lo envuelve.
+- **En esta máquina Windows, pytest se lanza con el intérprete base de uv.** El Control de
+  aplicaciones bloquea el `python.exe` del venv (os error 4551), así que
+  `uv run pytest` no arranca. Los tests pasan igual cargando `.venv/Lib/site-packages`.
+
+**Siguiente**: ML-03 (la referencia de football-ai fijada por commit), ML-04 (GCS y
+RunPod) o ML-05 (el grupo `apple`). Las tres dependen solo de esta. ML-03 fija un sha de
+la rama `migracion/dos-moviles` de football-ai, y ese sha tiene que estar subido a GitHub.
 
 ---
 

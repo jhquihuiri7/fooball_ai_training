@@ -1,12 +1,13 @@
 # football-ai-training — el repo donde se entrena.
 #
 # `torch` vive aqui y esta prohibido en el repo de deteccion, donde lo verifica
-# `.importlinter`. Lo unico que cruza la frontera es un `.onnx` con su ficha.
+# `.importlinter`. Lo que cruza la frontera son, por modelo, un `.onnx`, un
+# `.mlpackage.zip`, su ficha y su bundle dorado (ADR 0002).
 
 [project]
 name = "football-ai-training"
 version = "0.1.0"
-description = "Entrenamiento y export de los modelos de football-ai. Produce .onnx con su ficha."
+description = "Entrenamiento y export de los modelos de football-ai, a ONNX y a Core ML."
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 license = { text = "Proprietary" }
@@ -68,10 +69,11 @@ ignore = [
     "S105",    # el nombre de una variable de entorno no es una contrasena
     "S603",    # subprocess con lista de argumentos, que es la forma segura
     "S607",    # `git` desde el PATH: es lo que hay en cualquier maquina de desarrollo
-    "T201",    # las herramientas de linea de comandos imprimen
 ]
 
 [tool.ruff.lint.per-file-ignores]
+# `ftrain/` es una libreria y no imprime; las herramientas de linea de comandos si.
+"tools/*" = ["T201"]
 "tests/*" = ["S101", "PLR2004", "ANN"]
 # Un notebook de Colab se lee y se ejecuta a mano, y sus celdas mezclan Python con magias
 # de shell. Anotar tipos, abrir con `Path.open` o partir una linea de ffmpeg en dos no lo
@@ -87,6 +89,7 @@ ignore = [
     "PLC0207",
     "PTH123",
     "SIM115",
+    "T201",     # un cuaderno ensena lo que pasa imprimiendolo
     "TRY003",
 ]
 

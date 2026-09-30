@@ -57,6 +57,11 @@ fichero, un log ni un commit.
   siguiente paso. Y si algo se **midió**, la cifra va ahí: es lo único que no se recuerda.
 - Lo que no se pueda ejecutar en la máquina de turno, se implementa igual y se dice que no
   se ejecutó. No se reporta verde lo que no se ha corrido.
+- `ftrain/` es la librería: sin `print` (ruff T201) y sin números sueltos. Cada constante
+  va en `ftrain/constants.py` con su comentario y sus unidades. `tools/` son las
+  herramientas de línea de comandos y sí imprimen.
+- La guardia de licencias (`tests/test_guardia_licencias.py`) no se relaja para que pase
+  un fichero nuevo. Si algo necesita T-DEED o `ultralytics`, se para y se pregunta.
 
 ## 3. Entorno
 
