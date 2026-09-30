@@ -56,3 +56,13 @@ el panel, para ganar una clase que casi no se pide. No.
   sobreviven con recall aceptable.
 - `spotting-2023` y su NDA salen de la ruta crítica. La contraseña sigue soportada en
   `tools/fetch_soccernet.py` por si vuelve.
+
+*Enmienda (2026-09-30, [ADR 0002](0002-arquitectura-b-artefactos-y-entrenamiento.md)).*
+- **T-DEED y SoccerNet quedan solo como línea base de medida.** El modelo de doce clases de
+  esta decisión no llega al producto, y T3 y T4 se cancelan.
+- **El córner vuelve con datos propios, por dos caminos:**
+  - N1, las reglas sobre posiciones: una reanudación de tipo `corner` (ADR 0021 del repo de
+    detección);
+  - N3, la TCN sobre posiciones, entrenada aquí.
+- **La lista de clases del ADR 0013 §10** ya no espera a este modelo: la fijan el vocabulario
+  de marcas del ADR 0021 y las medidas de N1 a N4.

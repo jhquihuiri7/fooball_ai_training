@@ -3,19 +3,69 @@
 Estado de las tareas. Se actualiza al cerrar cada una: qué se hizo, qué quedó fuera,
 siguiente paso. **Lo que se mide va aquí**: es lo único que luego no se recuerda.
 
-Leyenda: ✅ hecha · 🚧 en curso · ⛔ bloqueada · ⬜ pendiente
+Leyenda: ✅ hecha · 🚧 en curso · ⛔ bloqueada · ⬜ pendiente · ✖ cancelada
 
-## Tablero
+## Tablero de la arquitectura B
+
+Las tarjetas están en `docs/plan-dos-moviles/entrenamiento.md` del repo de detección, en la
+rama `migracion/dos-moviles`. Una tarea no empieza hasta que sus dependencias estén en ✅
+aquí. Las que no llevan marca están ⬜.
+
+| EPIC | Qué | Tareas |
+|---|---|---|
+| ML-E1 | Infraestructura y contrato del repo | ML-01 ✅ · ML-02 · ML-03 · ML-04 · ML-05 |
+| ML-E2 | Campaña de datos: grabación, ingesta, extracción y anotación | ML-06 · ML-07 · ML-08 · ML-17 · ML-18 · ML-19 · ML-20 · ML-21 · ML-22 · ML-23 · ML-58 |
+| ML-E3 | Autoanotación con maestro y players-v1 | ML-24 · ML-25 · ML-26 · ML-27 · ML-28 · ML-29 · ML-30 · ML-31 |
+| ML-E4 | Jugadores: D-FINE-N a 1920×576 | ML-15 · ML-16 · ML-32 · ML-33 · ML-34 · ML-35 |
+| ML-E5 | Balón: heatmap ROI-lite de 3 frames en gris | ML-14 · ML-36 · ML-37 · ML-38 · ML-39 · ML-40 · ML-41 · ML-42 |
+| ML-E6 | Export a Core ML y validación | ML-09 · ML-10 · ML-11 · ML-12 · ML-13 · ML-43 · ML-45 |
+| ML-E7 | Spikes de modelo en el iPhone 17 | SPK-50 · SPK-51 · SPK-52 · SPK-53 · SPK-54 · SPK-56 |
+| ML-E8 | Eventos aprendidos N3 y N4 | ML-47 · ML-48 · ML-49 · ML-50 · ML-51 · ML-52 · ML-53 · ML-54 · ML-55 · ML-57 |
+| ML-E9 | Retiradas | ML-46 ✅ (en el repo de detección) |
+
+## Línea base de T-DEED, congelada (ADR 0002)
 
 | TASK | Qué | Estado |
 |---|---|---|
 | **T0** | Repo, entorno y contrato con el repo de detección | ✅ |
 | **T1** | T-DEED clonado, su firma leída y la línea base corrida y contrastada | ✅ |
 | **T2** | Datos de SoccerNet | ✅ herramienta · ✅ tarea elegida ([ADR 0001](DECISIONS/0001-ball-action-spotting-sin-corner.md)) · ⬜ descarga |
-| T3 | Reducir a las clases que interesan | ⬜ |
-| T4 | Fine-tuning, con división por partidos completos | ⬜ |
+| T3 | Reducir a las clases que interesan | ✖ cancelada ([ADR 0002](DECISIONS/0002-arquitectura-b-artefactos-y-entrenamiento.md)) |
+| T4 | Fine-tuning, con división por partidos completos | ✖ cancelada ([ADR 0002](DECISIONS/0002-arquitectura-b-artefactos-y-entrenamiento.md)) |
 | T5 | Export a ONNX con shapes estáticas **y su ficha** | ✅ |
 | T6 | Verificación numérica torch vs onnxruntime (< 1e-3) | ✅ **9,54e-06** |
+
+---
+
+## 2026-09-30 · ML-01 — ADR 0002: qué produce el repo con la arquitectura B · ✅
+
+**Hecho**
+- [ADR 0002](DECISIONS/0002-arquitectura-b-artefactos-y-entrenamiento.md), ACEPTADO. Pone
+  por escrito, para este repo, decisiones que el propietario ya tomó el 2026-09-28 y el
+  2026-09-29:
+  - los cuatro artefactos por modelo;
+  - la pila (D-FINE-N, ROI-lite, N3 y N4);
+  - dónde se trabaja (GCS, RunPod, Vertex, Mac y Colab);
+  - T-DEED congelado y `best.pt` fuera.
+- Enmiendas:
+  - el README: los tres repos, la ficha v2 y el estado;
+  - CLAUDE.md §0-§4: el entregable, lo que tiene que poder venderse, la puerta fp16, dónde va
+    cada cosa y la rama `migracion/dos-moviles`;
+  - las consecuencias del ADR 0001: el córner vuelve por N1 y N3;
+  - este tablero, con T3 y T4 canceladas.
+- La rama `migracion/dos-moviles` sale de `main` en este commit.
+
+**Decidido aquí, por ser lo mínimo**
+- El `.mlpackage.zip` solo lo llevan los modelos que corren en el móvil. N3 corre en ONNX
+  por CPU (ADR 0021 del repo de detección), así que entrega los otros tres artefactos.
+- CLAUDE.md §4 no lista comandos de herramientas que todavía no existen: cada uno se añade
+  con la tarea que lo crea.
+
+**Fuera**
+- `best.pt` sigue en `c:/dev/football-ai/models/onnx/`, en la máquina Windows. Git lo
+  ignora y nada lo referencia. Borrarlo es una acción del propietario (ML-46).
+
+**Siguiente**: ML-02, el paquete `ftrain/` con sus constantes y la guardia de licencias.
 
 ---
 

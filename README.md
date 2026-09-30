@@ -1,19 +1,22 @@
 # football-ai-training
 
-El repo donde se entrena. Produce **un artefacto y nada más**: un `.onnx` con su ficha,
-que se copia al repo de detección.
+El repo donde se entrena. Produce **los modelos del sistema**, y por cada uno entrega cuatro
+cosas: un `.onnx`, un `.mlpackage.zip` para el iPhone, su ficha y sus vectores dorados
+([ADR 0002](docs/DECISIONS/0002-arquitectura-b-artefactos-y-entrenamiento.md)).
 
 ## Los tres repos
 
 | Repo | Qué hace | Qué sale de él |
 |---|---|---|
-| `fooball_ai_capturer` | La app de los dos iPhone (EPIC A del ADR 0012) | SRT con código de tiempo |
-| `fooball_ai_streaming` | Detección, panel, emisión y repetición | El programa al aire |
-| **`fooball_ai_training`** (este) | Datasets y entrenamiento | Un `.onnx` + su entrada de `registry.yaml` |
+| `fooball_ai_capturer` | La app de los dos iPhone. Es el directo: captura, detecta en el Neural Engine con los modelos de aquí, compone el programa y lo emite | El programa por SRT al VPS |
+| `fooball_ai_streaming` | La referencia en Python (`libs/vision`) con sus dorados, los servicios del VPS y el diferido en una GPU puntual | Clips, relé a las plataformas y el reprocesado en 4K |
+| **`fooball_ai_training`** (este) | Datos, autoanotación, entrenamiento y export a ONNX y Core ML | Por modelo: `.onnx`, `.mlpackage.zip`, ficha y bundle dorado |
 
-La frontera la fijan el [ADR 0004](https://github.com/jhquihuiri7/fooball_ai_streaming/blob/main/docs/DECISIONS/0004-recorte-a-repo-de-deteccion.md)
-y el ADR 0013 §3 del repo de detección: **lo único que cruza es un `.onnx` acompañado de
-su ficha**. `torch` vive aquí y está prohibido allí, donde lo verifica `.importlinter`.
+Es la arquitectura B: el directo lo hacen los dos móviles. La frontera la fijan el
+[ADR 0019 §8](https://github.com/jhquihuiri7/fooball_ai_streaming/blob/migracion/dos-moviles/docs/DECISIONS/0019-arquitectura-b-dos-moviles.md),
+que sustituye al alcance de su ADR 0004, y el §4 de su ADR 0020. **Lo que cruza son los
+artefactos de cada modelo, cada uno por su sha256.** `torch` vive aquí y está prohibido allí,
+donde lo verifica `.importlinter`.
 
 ## La ficha, que es el entregable de verdad
 
@@ -25,13 +28,22 @@ con las clases en orden alfabético de Roboflow; el orden hubo que **medirlo** c
 hay ninguna propiedad geométrica que distinga «gol» de «córner» en unos logits.
 
 Por eso cada export produce, además del `.onnx`, el bloque YAML listo para pegar en
-`models/registry.yaml` del repo de detección, con: `sha256`, forma de entrada, `T`, fps de
+`models/registry.yaml` del repo de detección. Lleva `sha256`, forma de entrada, `T`, fps de
 muestreo, normalización, activación, **orden de clases** y layout de salida.
+
+La ficha v2 (ML-13) añade dos bloques:
+- `artifacts.coreml`: la ruta, el sha256, la versión mínima de iOS y qué operaciones no caen en
+  el ANE;
+- `parity`: el bundle dorado y su tolerancia.
+
+Con eso, la app comprueba en XCTest que el modelo y su postproceso en Swift dan lo mismo que
+Python.
 
 ## Estado
 
-Ver [docs/PROGRESS.md](docs/PROGRESS.md). Hoy: T1 y T2 preparadas, ninguna ejecutada de
-punta a punta —hacen falta una GPU y el NDA de SoccerNet—.
+Ver [docs/PROGRESS.md](docs/PROGRESS.md). T-DEED quedó exportado y verificado (T1, T5 y T6),
+y se congela como línea base de medida: T3 y T4 se cancelan. Lo siguiente son las tareas ML y
+SPK del plan de la arquitectura B, empezando por la infraestructura (ML-02 a ML-05).
 
 ## Entorno
 
@@ -55,4 +67,4 @@ Este repo usa herramientas que **no se pueden meter en el producto**. Está deta
   sirven para medir una línea base, **no** para el producto.
 
 El camino limpio para vender es reentrenar con datos propios una arquitectura de licencia
-permisiva. Lo demás es para medir.
+permisiva. Es lo que fija el ADR 0002; lo demás es para medir.
