@@ -29,6 +29,23 @@ admiten y van con su aviso.
 | timm | Apache-2.0 | Backbones preentrenados. Cada checkpoint tiene su propia licencia, que hay que mirar una por una |
 | opencv-python-headless | Apache-2.0 | |
 | tensorboard | Apache-2.0 | |
+| faster-coco-eval | Apache-2.0 | Lo importa DEIM para cargar y evaluar COCO (ML-15). Licencia leída en su repositorio: PyPI no la declara |
+| scipy | BSD-3 | Lo importa DEIM (`linear_sum_assignment` del emparejado) |
+| calflops | MIT | Lo importa DEIM al arrancar (`engine/misc`). Arrastra accelerate y huggingface-hub, Apache-2.0 los dos |
+
+DEIM también lista `transformers` en su `requirements.txt`, pero su código no lo importa en
+el commit fijado: no se instala.
+
+## Receta y pesos de los jugadores — se clonan y se bajan, fijados (ML-15)
+
+`uv run python tools/fetch_deim.py` los deja en `third_party/DEIM` y `models/pretrained/`,
+que git ignora.
+
+| Qué | Licencia | Notas |
+|---|---|---|
+| **DEIM v1** | Apache-2.0 | Commit `09d35d5`, con su LICENSE copiada en `licenses/DEIM-LICENSE-09d35d5.txt`. Desde el 2025-07-21 lleva delante el copyright de Intellindust, el mismo titular que relicenció DEIMv2 como no comercial. Por eso el fetch **se para si la LICENSE cambia en una sola línea**. Se clona, no se vendoriza |
+| HGNetv2 | Apache-2.0 | El backbone de D-FINE-N. Va dentro de DEIM, que lo porta de PaddleDetection |
+| Pesos `dfine_n_coco.pth` | Apache-2.0 | D-FINE-N entrenado en COCO, de las releases de D-FINE, con el sha256 fijado en el fetch. Las imágenes de COCO tienen términos mixtos: es el riesgo residual que acepta el ADR 0002. **Vetados** los `*_obj365` y `*_obj2coco`, porque Objects365 no admite uso comercial |
 
 ## Herramientas externas — se ejecutan, no se distribuyen
 

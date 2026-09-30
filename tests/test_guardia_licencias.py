@@ -36,9 +36,11 @@ PROHIBIDOS = {
 """Paquete de primer nivel y por qué no puede entrar. `model` y `util` son los de T-DEED,
 que se importan así cuando su carpeta está en `sys.path`."""
 
-RUTA_TDEED = re.compile(r"(^|[/\\])(third_party|T-DEED)([/\\]|$)", re.IGNORECASE)
-"""Una cadena que nombra la carpeta de T-DEED como parte de una ruta. «T-DEED» dentro de
-una frase no cuenta."""
+RUTA_TDEED = re.compile(r"(^|[/\\])T-DEED([/\\]|$)", re.IGNORECASE)
+"""Una cadena que nombra la carpeta de T-DEED como parte de una ruta, sola o con más. Basta
+con ese componente: `Path("third_party") / "T-DEED"` también lo lleva. `third_party/` por
+sí sola no cuenta, porque ahí vive también DEIM (Apache-2.0), y «T-DEED» dentro de una
+frase tampoco."""
 
 
 def _prohibido(modulo: str) -> str | None:
@@ -198,6 +200,7 @@ def test_las_dos_herramientas_de_la_linea_base_quedan_fuera(tmp_path: Path, rela
         '"""Nada de aquí toca third_party/T-DEED."""',
         'RUTA = 1\n"""La carpeta third_party/T-DEED no se toca."""\n',
         'MENSAJE = "la tarea para la que T-DEED publica pesos"',
+        "from pathlib import Path; DEIM = Path('third_party/DEIM')",
     ],
 )
 def test_deja_pasar(tmp_path: Path, codigo: str) -> None:

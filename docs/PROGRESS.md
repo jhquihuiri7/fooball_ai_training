@@ -16,7 +16,7 @@ aquí. Las que no llevan marca están ⬜.
 | ML-E1 | Infraestructura y contrato del repo | ML-01 ✅ · ML-02 ✅ · ML-03 · ML-04 · ML-05 |
 | ML-E2 | Campaña de datos: grabación, ingesta, extracción y anotación | ML-06 · ML-07 · ML-08 · ML-17 · ML-18 · ML-19 · ML-20 · ML-21 · ML-22 · ML-23 · ML-58 |
 | ML-E3 | Autoanotación con maestro y players-v1 | ML-24 · ML-25 · ML-26 · ML-27 · ML-28 · ML-29 · ML-30 · ML-31 |
-| ML-E4 | Jugadores: D-FINE-N a 1920×576 | ML-15 · ML-16 · ML-32 · ML-33 · ML-34 · ML-35 |
+| ML-E4 | Jugadores: D-FINE-N a 1920×576 | ML-15 ✅ · ML-16 · ML-32 · ML-33 · ML-34 · ML-35 |
 | ML-E5 | Balón: heatmap ROI-lite de 3 frames en gris | ML-14 · ML-36 · ML-37 · ML-38 · ML-39 · ML-40 · ML-41 · ML-42 |
 | ML-E6 | Export a Core ML y validación | ML-09 · ML-10 · ML-11 · ML-12 · ML-13 · ML-43 · ML-45 |
 | ML-E7 | Spikes de modelo en el iPhone 17 | SPK-50 · SPK-51 · SPK-52 · SPK-53 · SPK-54 · SPK-56 |
@@ -34,6 +34,44 @@ aquí. Las que no llevan marca están ⬜.
 | T4 | Fine-tuning, con división por partidos completos | ✖ cancelada ([ADR 0002](DECISIONS/0002-arquitectura-b-artefactos-y-entrenamiento.md)) |
 | T5 | Export a ONNX con shapes estáticas **y su ficha** | ✅ |
 | T6 | Verificación numérica torch vs onnxruntime (< 1e-3) | ✅ **9,54e-06** |
+
+---
+
+## 2026-09-30 · ML-15 — DEIM v1 fijado y pesos COCO de D-FINE-N · ✅
+
+**Hecho**
+- `tools/fetch_deim.py` hace tres cosas:
+  - clona DEIM en `third_party/DEIM` al commit fijado `09d35d5`, y se para si el árbol tiene
+    cambios locales;
+  - compara su LICENSE, línea a línea y sin mirar los finales de línea, con
+    `licenses/DEIM-LICENSE-09d35d5.txt`, que va en git, y se para con el diff si cambió;
+  - baja `dfine_n_coco.pth` a `models/pretrained/` con su sha256 fijado. Descarga a un
+    `.part` y rechaza por el nombre los `*_obj365` y `*_obj2coco`.
+- **Lo que se vio al fijarlo.** La LICENSE de DEIM cambió el 2025-07-21 (`bc11dfe`). Solo
+  añadió arriba el copyright de Intellindust; sigue siendo Apache-2.0. Es la versión que
+  queda fijada.
+- **Dependencias de DEIM, una a una**, en el grupo `train` y en DEPENDENCIES:
+  - `faster-coco-eval`, Apache-2.0: PyPI no declara la licencia; está leída en su repo;
+  - `scipy`, BSD-3;
+  - `calflops`, MIT, que arrastra `accelerate` y `huggingface-hub`, Apache-2.0 los dos;
+  - `transformers` no entra: está en su `requirements.txt`, pero el código no lo importa.
+- **La guardia de ML-02 era demasiado ancha.** Rechazaba cualquier ruta con
+  `third_party/`, y ahí vive también DEIM. Ahora solo rechaza el componente `T-DEED`. Sigue
+  cazando `Path("third_party") / "T-DEED"`, y hay un caso nuevo que deja pasar
+  `third_party/DEIM`.
+
+**Medido** (fetch real en Windows, 2026-09-30)
+
+| | |
+|---|---|
+| DEIM | `09d35d53d39e`, árbol `20da1766e866` en las dos pasadas |
+| `dfine_n_coco.pth` | 15.489.558 bytes, sha256 `41973938d278…`; la segunda pasada no baja nada |
+| LICENSE con una línea cambiada | el fetch sale con 1 y enseña el diff |
+
+ruff en verde y pytest con 91 tests (eran 75).
+
+**Siguiente**: ML-14 (el modelo del balón) y ML-05 (el grupo `apple`). ML-16 espera a
+ML-09, ML-10 y ML-11.
 
 ---
 
