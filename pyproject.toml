@@ -52,6 +52,17 @@ apple = [
     "coremltools>=9 ; sys_platform != 'win32'",
 ]
 
+# ref — opt-in: uv sync --group ref. La referencia Python de football-ai (ML-03), fijada
+# por commit en [tool.uv.sources]: moverla es cambiar ese sha, y no hay otro modo. Aquel
+# paquete no declara su runtime (vive en un grupo de su repo), asi que aqui van las
+# dependencias de los modulos que usa `ftrain/ref.py`: scipy (postproceso) y opencv (campo
+# y franja). numpy y pyyaml ya vienen en core.
+ref = [
+    "football-ai",
+    "scipy>=1.14",
+    "opencv-python-headless>=4.10",
+]
+
 dev = [
     "pytest>=8.3",
     "ruff>=0.8",
@@ -59,6 +70,9 @@ dev = [
 
 [tool.uv]
 default-groups = ["core", "dev"]
+
+[tool.uv.sources]
+football-ai = { git = "https://github.com/jhquihuiri7/fooball_ai_streaming", rev = "efed47bb765fd36a3b24a597db13ef47447975bb" }
 
 [tool.ruff]
 line-length = 100

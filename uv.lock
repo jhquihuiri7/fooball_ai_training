@@ -364,6 +364,11 @@ wheels = [
 ]
 
 [[package]]
+name = "football-ai"
+version = "0.1.0"
+source = { git = "https://github.com/jhquihuiri7/fooball_ai_streaming?rev=efed47bb765fd36a3b24a597db13ef47447975bb#efed47bb765fd36a3b24a597db13ef47447975bb" }
+
+[[package]]
 name = "football-ai-training"
 version = "0.1.0"
 source = { virtual = "." }
@@ -384,6 +389,11 @@ core = [
 dev = [
     { name = "pytest" },
     { name = "ruff" },
+]
+ref = [
+    { name = "football-ai" },
+    { name = "opencv-python-headless" },
+    { name = "scipy" },
 ]
 train = [
     { name = "calflops" },
@@ -413,6 +423,11 @@ core = [
 dev = [
     { name = "pytest", specifier = ">=8.3" },
     { name = "ruff", specifier = ">=0.8" },
+]
+ref = [
+    { name = "football-ai", git = "https://github.com/jhquihuiri7/fooball_ai_streaming?rev=efed47bb765fd36a3b24a597db13ef47447975bb" },
+    { name = "opencv-python-headless", specifier = ">=4.10" },
+    { name = "scipy", specifier = ">=1.14" },
 ]
 train = [
     { name = "calflops", specifier = ">=0.3" },

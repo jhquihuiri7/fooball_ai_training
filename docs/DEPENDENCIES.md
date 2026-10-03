@@ -42,6 +42,14 @@ el commit fijado: no se instala.
 |---|---|---|
 | coremltools | BSD-3 | Convierte a `.mlpackage`: en Linux convierte, y en el Mac además predice. No tiene ruedas para Windows, así que el marcador lo deja fuera ahí. Arrastra attrs y cattrs (MIT) y pyaml (WTFPL). Ninguno viaja dentro del `.mlpackage` |
 
+## `ref` — opt-in, la referencia de football-ai (ML-03)
+
+| Paquete | Licencia | Notas |
+|---|---|---|
+| football-ai | Propio | La referencia Python (`libs.vision`) del repo de detección, por git y fijada por sha en `[tool.uv.sources]`. Solo se usa a través de `ftrain/ref.py` |
+| scipy | BSD-3 | La importa el postproceso de la referencia (`maximum_filter`, en los picos del heatmap) |
+| opencv-python-headless | Apache-2.0 | La importan la homografía del campo y la franja de la referencia |
+
 ## Receta y pesos de los jugadores — se clonan y se bajan, fijados (ML-15)
 
 `uv run python tools/fetch_deim.py` los deja en `third_party/DEIM` y `models/pretrained/`,

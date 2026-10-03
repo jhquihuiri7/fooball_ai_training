@@ -13,7 +13,7 @@ aquí. Las que no llevan marca están ⬜.
 
 | EPIC | Qué | Tareas |
 |---|---|---|
-| ML-E1 | Infraestructura y contrato del repo | ML-01 ✅ · ML-02 ✅ · ML-03 · ML-04 · ML-05 🚧 |
+| ML-E1 | Infraestructura y contrato del repo | ML-01 ✅ · ML-02 ✅ · ML-03 ✅ · ML-04 · ML-05 🚧 |
 | ML-E2 | Campaña de datos: grabación, ingesta, extracción y anotación | ML-06 · ML-07 · ML-08 · ML-17 · ML-18 · ML-19 · ML-20 · ML-21 · ML-22 · ML-23 · ML-58 |
 | ML-E3 | Autoanotación con maestro y players-v1 | ML-24 · ML-25 · ML-26 · ML-27 · ML-28 · ML-29 · ML-30 · ML-31 |
 | ML-E4 | Jugadores: D-FINE-N a 1920×576 | ML-15 ✅ · ML-16 · ML-32 · ML-33 · ML-34 · ML-35 |
@@ -36,6 +36,42 @@ aquí. Las que no llevan marca están ⬜.
 | T6 | Verificación numérica torch vs onnxruntime (< 1e-3) | ✅ **9,54e-06** |
 
 ---
+
+## 2026-10-03 · ML-03 — la referencia Python de football-ai, fijada por commit · ✅
+
+**Hecho**
+- `pyproject.toml`: grupo `ref` con `football-ai` por git, fijado en `[tool.uv.sources]` al
+  commit `efed47b` de `migracion/dos-moviles` (NUBE-05c, que ya trae REF-23 y REF-25).
+  Moverla es cambiar ese sha. Como aquel paquete no declara su runtime, el grupo lleva lo
+  que importan los módulos que se usan: scipy (postproceso) y opencv (campo y franja).
+  **No lleva structlog**, que pedía la tarjeta: ninguno de esos módulos lo importa ya.
+- `ftrain/ref.py`: fachada de import perezoso (PEP 562) para `read_timecode_ms`,
+  `PitchModel`, `decode_boxes_to_corners`, `sigmoid`, `heatmap_peaks`, `load_registry` y
+  `compose_band_input`, el lienzo de la franja de REF-25. Sin el grupo, importar el módulo
+  no falla. Lo que falla es pedir un nombre, con `RefMissingError` y el comando que lo
+  arregla.
+- `DEPENDENCIES.md`: la tabla del grupo `ref`.
+
+**Tests**: `tests/test_ref.py` (4). El código de tiempo que pinta `write_timecode` de la
+referencia se lee por la fachada en un frame 4K; cada nombre sale del módulo que dice; sin
+la referencia, `RefMissingError`; y un nombre que no expone es un `AttributeError`. Los
+dos primeros se saltan con motivo si falta el grupo.
+
+**Ejecutado aquí (Windows)**
+- `uv lock` resuelve el commit fijado, y `uv sync --group train --group ref` instala.
+- ruff ✅ · ruff format ✅. pytest: los 4 de `test_ref.py` pasan con el grupo instalado.
+- **El resto de la suite no se puede correr entero en esta máquina.** El Control de
+  aplicaciones de Windows (error 4551) bloquea las extensiones nativas de torch
+  (`torch_python.dll`) y de onnx (`onnx_cpp2py_export.pyd`, que nadie ha tocado desde el
+  19 de septiembre). Caen al recogerlos `test_tools.py` y `test_ball_model.py`, y falla el
+  test de la red de `test_mac_smoke.py`. Del resto, 71 pasan y 2 se saltan (Core ML).
+  cv2, scipy, numpy y onnxruntime sí cargan.
+- Ojo: `uv sync --group ref` a secas desinstala los grupos que no se nombran, torch
+  incluido. Aquí se sincroniza con `--group train --group ref`.
+
+**Siguiente**: con ML-03, ML-19 (bandas de distancia y paso de etiquetas nativo↔lienzo)
+tiene sus dependencias, porque REF-25 y REF-29 ya están; es de H2. ML-12 y ML-13 usarán
+esta referencia cuando llegue su turno.
 
 ## 2026-09-30 · ML-05 — grupo `apple` con coremltools y el Mac de referencia · 🚧 falta Linux y el Mac
 
