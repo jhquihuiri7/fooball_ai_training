@@ -73,7 +73,7 @@ dos primeros se saltan con motivo si falta el grupo.
 tiene sus dependencias, porque REF-25 y REF-29 ya están; es de H2. ML-12 y ML-13 usarán
 esta referencia cuando llegue su turno.
 
-## 2026-09-30 · ML-05 — grupo `apple` con coremltools y el Mac de referencia · 🚧 falta Linux y el Mac
+## 2026-09-30 · ML-05 — grupo `apple` con coremltools y el Mac de referencia · 🚧 falta Linux
 
 **Hecho**
 - `pyproject.toml`: el grupo `apple`, que instala `coremltools>=9` salvo en Windows, donde no
@@ -96,11 +96,19 @@ esta referencia cuando llegue su turno.
   tarjeta para Windows.
 - `tools/mac_smoke.py` sale con 1 y con el mensaje.
 
+**Ejecutado en el Mac de referencia (2026-10-03)**
+- MacBook Air M4, macOS 26.3, Xcode 26.6; coremltools 9.0, torch 2.14.0 (aviso de
+  coremltools: probado hasta 2.7; el humo pasa igual).
+- `uv run python tools/mac_smoke.py`: convertido `runs/mac_smoke/smoke.mlpackage`
+  (mlprogram, fp16, iOS 18) y **CPU_AND_NE: Δ = 4,68e-04 · CPU_ONLY: Δ = 4,68e-04**,
+  las dos muy por debajo del 1e-2 de la aceptación.
+- `pytest tests/test_mac_smoke.py`: 3 passed, 1 skipped (el aviso de Windows, aquí
+  no aplica). Convertir y guardar también pasó en macOS.
+
 **Pendiente para el ✅**
-- **En Linux:** `uv sync --group train --group apple` y pytest. El test de convertir tiene
-  que pasar. Esta máquina no tiene WSL.
-- **En el Mac:** `uv run python tools/mac_smoke.py` con las dos diferencias < 1e-2. Se
-  anotan aquí con el modelo del Mac y las versiones de macOS y `coremltools`.
+- **En Linux:** `uv sync --group train --group apple` y pytest; el test de convertir
+  tiene que pasar. Ni el Windows (sin WSL) ni el Mac lo cubren: va en la VM del
+  export (ML-02) o en el pod.
 
 ruff en verde y pytest con 109 tests y 2 saltados (eran 107).
 
