@@ -73,7 +73,7 @@ dos primeros se saltan con motivo si falta el grupo.
 tiene sus dependencias, porque REF-25 y REF-29 ya están; es de H2. ML-12 y ML-13 usarán
 esta referencia cuando llegue su turno.
 
-## 2026-09-30 · ML-05 — grupo `apple` con coremltools y el Mac de referencia · 🚧 falta Linux
+## 2026-09-30 · ML-05 — grupo `apple` con coremltools y el Mac de referencia · ✅
 
 **Hecho**
 - `pyproject.toml`: el grupo `apple`, que instala `coremltools>=9` salvo en Windows, donde no
@@ -105,10 +105,14 @@ esta referencia cuando llegue su turno.
 - `pytest tests/test_mac_smoke.py`: 3 passed, 1 skipped (el aviso de Windows, aquí
   no aplica). Convertir y guardar también pasó en macOS.
 
-**Pendiente para el ✅**
-- **En Linux:** `uv sync --group train --group apple` y pytest; el test de convertir
-  tiene que pasar. Ni el Windows (sin WSL) ni el Mac lo cubren: va en la VM del
-  export (ML-02) o en el pod.
+**Ejecutado en Linux (2026-10-03, el VPS del soporte, Ubuntu 24.04.4)**
+- Árbol subido por ssh (sin credenciales de git en el servidor), `uv sync --group
+  train --group apple` y **pytest: 111 passed, 4 skipped** — el test de convertir en
+  verde; los de predecir, saltados con su motivo (solo macOS). Con esto las tres
+  patas (Windows/Mac/Linux) están, y la tarea cierra.
+- Ojo al correr en un Linux pelado: con `LANG=C` la guardia de licencias lee en
+  ASCII (PYTHONUTF8=1 lo arregla), y un tar hecho en macOS sin `COPYFILE_DISABLE=1`
+  cuela ficheros `._*` AppleDouble que esa guardia no puede decodificar.
 
 ruff en verde y pytest con 109 tests y 2 saltados (eran 107).
 
