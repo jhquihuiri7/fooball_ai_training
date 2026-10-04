@@ -37,6 +37,29 @@ aquí. Las que no llevan marca están ⬜.
 
 ---
 
+## 2026-10-03 · ML-24 — teselado nativo, TTA y fusión · ✅
+
+**Hecho**
+- `ftrain/tiling.py`, todo numpy: rejilla de teselas del lado del modelo con
+  solape en constante (`TILE_OVERLAP_PX = 256`, mayor que el objeto más alto:
+  es lo que garantiza que nada quede partido en todas las teselas a la vez;
+  la última tesela de cada eje se clava al borde), `crop` como vista,
+  `to_native`, fusión por clase (`fuse`: NMS numpy con `FUSE_IOU = 0.6`, se
+  queda con la confianza MÁXIMA, nunca un promedio), y el TTA con inversa:
+  volteo horizontal y ampliación de las filas lejanas (`zoom_far_rows` con cv2
+  perezoso; su inversa divide).
+- Exactitud del volteo medida de verdad: con cajas float32 (lo que emite un
+  detector) la involución es bit a bit **si la resta se hace en float64** — con
+  el array en float32, numpy restaba en float32 por la promoción débil del
+  escalar y se perdía un ulp. Está en el docstring y en el test.
+- Tests (9, puros): cobertura y borde de la rejilla, imagen menor que la
+  tesela, solape inválido, vista+vuelta a nativo, **el objeto sobre la costura
+  sale UNA vez y con la confianza máxima**, fusión por clases, involución
+  exacta del volteo, inversa exacta de la ampliación, validaciones.
+
+**Siguiente paso**: ML-17 (muestreo de frames) si sus deps lo permiten; si no,
+quedan las tareas que esperan al propietario (ML-04/06/21) o a hubs/REF-33.
+
 ## 2026-10-03 · ML-16 — D-FINE-N COCO a 1920×576, exportado y con su fp16 medido · ✅ criterios (🚧 subida a GCS, espera el bucket de ML-04)
 
 **Hecho**
