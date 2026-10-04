@@ -80,6 +80,10 @@ class LintConfig:
 
     cola: frozenset[str] = field(default_factory=frozenset)  # tipos de op de la cola
     exentos: frozenset[str] = field(default_factory=frozenset)  # salidas sin múltiplo de 16
+    permitidos: frozenset[str] = field(default_factory=frozenset)
+    """Tipos de orden (topk/argsort/NMS) tolerados FUERA de la cola, con excusa
+    anotada en el yaml: p. ej. el topk del selector de queries de D-FINE, que es
+    arquitectura y no postproceso (ML-16). El resto de reglas les sigue aplicando."""
 
 
 def load_config(path: Path) -> LintConfig:
@@ -91,7 +95,7 @@ def load_config(path: Path) -> LintConfig:
     if not isinstance(crudo, dict):
         msg = f"{path}: la lista blanca tiene que ser un mapa"
         raise LintError(msg)
-    for clave in ("cola", "exentos"):
+    for clave in ("cola", "exentos", "permitidos"):
         valores = crudo.get(clave, [])
         if not isinstance(valores, list) or any(not isinstance(v, str) for v in valores):
             msg = f"{path}: `{clave}` tiene que ser una lista de cadenas"
@@ -99,6 +103,7 @@ def load_config(path: Path) -> LintConfig:
     return LintConfig(
         cola=frozenset(crudo.get("cola", [])),
         exentos=frozenset(crudo.get("exentos", [])),
+        permitidos=frozenset(crudo.get("permitidos", [])),
     )
 
 
@@ -189,7 +194,7 @@ def lint(
         preproceso = _is_input_preprocess(op, inputs)
         violaciones += _type_violations(op)
         violaciones += _shape_violations(op, exentas if not preproceso else exentas | {op.name})
-        if op.type in _ORDERING and not en_cola:
+        if op.type in _ORDERING and not en_cola and op.type not in config.permitidos:
             violaciones.append(
                 Violation(
                     "orden-fuera-de-cola",

@@ -10,3 +10,9 @@ cola: []
 #   canales. Las cabezas del modelo ya están exentas solas; esto es para
 #   activaciones intermedias con excusa medida, no para callar al lint.
 exentos: []
+
+# permitidos: TIPOS de orden (topk/argsort/non_maximum_suppression) tolerados
+#   FUERA de la cola, cada uno con su excusa escrita aquí al lado. El caso que
+#   lo motivó: el topk del selector de queries de D-FINE, que es arquitectura
+#   y no postproceso (ML-16). El resto de reglas les sigue aplicando.
+permitidos: []

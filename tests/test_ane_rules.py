@@ -44,6 +44,17 @@ def test_topk_en_medio_falla_y_en_la_cola_declarada_no():
     assert en_cola == []
 
 
+def test_un_permitido_no_paga_la_cola_pero_el_resto_si():
+    relu = _op("relu", shapes=((1, 16, 8, 8),), dtypes=("fp16",))
+    topk = _op("topk", "queries", shapes=((1, 16, 8, 16),), dtypes=("fp16",))
+    argsort = _op("argsort", "orden", shapes=((1, 16, 8, 16),), dtypes=("fp16",))
+
+    config = LintConfig(permitidos=frozenset({"topk"}))
+    violaciones = lint([relu, topk, argsort, relu], config)
+
+    assert [v.op for v in violaciones if v.rule == "orden-fuera-de-cola"] == ["orden"]
+
+
 def test_control_de_flujo():
     ops = [_op("while_loop", "bucle"), _op("cond", "rama")]
     assert _reglas(lint(ops, LintConfig())) == {"control"}

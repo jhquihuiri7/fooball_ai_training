@@ -266,13 +266,6 @@ def convert(
 
     module = module.eval()
     ejemplos = tuple(torch.zeros(entrada.shape) for entrada in spec.inputs)
-    try:
-        # run_decompositions({}) baja el grafo al dialecto ATEN: coremltools no
-        # acepta el dialecto TRAINING que torch.export emite por defecto.
-        trazado = torch.export.export(module, ejemplos).run_decompositions({})
-    except Exception:  # noqa: BLE001 — el respaldo es parte del contrato
-        with torch.no_grad():
-            trazado = torch.jit.trace(module, ejemplos)
 
     entradas_ct = []
     for entrada in spec.inputs:
@@ -294,13 +287,26 @@ def convert(
                 ct.TensorType(name=entrada.name, shape=entrada.shape, dtype=np.float16)
             )
 
-    modelo = ct.convert(
-        trazado,
-        convert_to="mlprogram",
-        compute_precision=ct.precision.FLOAT16,
-        minimum_deployment_target=getattr(ct.target, f"iOS{MINIMUM_IOS}"),
-        inputs=entradas_ct,
-    )
+    def _convertir(trazado: Any) -> Any:
+        return ct.convert(
+            trazado,
+            convert_to="mlprogram",
+            compute_precision=ct.precision.FLOAT16,
+            minimum_deployment_target=getattr(ct.target, f"iOS{MINIMUM_IOS}"),
+            inputs=entradas_ct,
+        )
+
+    try:
+        # El camino nuevo entero: torch.export y su frontend. run_decompositions({})
+        # baja el grafo al dialecto ATEN, que es el que coremltools acepta.
+        modelo = _convertir(torch.export.export(module, ejemplos).run_decompositions({}))
+    except Exception:  # noqa: BLE001 — el respaldo es parte del contrato
+        # El respaldo cubre TAMBIÉN los fallos de ct.convert sobre el ExportedProgram
+        # (p. ej. el frontend nuevo no traga el linear 3D del decoder de D-FINE):
+        # el frontend de TorchScript es el maduro y el que ML-05 validó.
+        with torch.no_grad():
+            trazado = torch.jit.trace(module, ejemplos)
+        modelo = _convertir(trazado)
 
     # Los nombres de salida son el contrato: se renombra lo que haya salido.
     # get_spec() devuelve una COPIA: se pide una vez y se trabaja sobre ella.
