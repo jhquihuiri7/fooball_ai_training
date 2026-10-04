@@ -37,6 +37,26 @@ aquí. Las que no llevan marca están ⬜.
 
 ---
 
+## 2026-10-03 · ML-06 — protocolo de grabación y manifiesto de partido · ✅ (protocolo pendiente de revisión del propietario)
+
+**Hecho**
+- `docs/PROTOCOLO_GRABACION.md`: la lista previa (NTP, «Guardar vídeo» en los dos,
+  audio, refrigeración, PD), la matriz de la campaña (6-10 partidos, ≥3 canchas, día
+  y focos, dos retranqueos y dos inclinaciones, y la cancha SAGRADA que jamás entra
+  en train), qué se captura además (pareja de calibración, marcas N0 y 3 ráfagas de
+  10 s de NV12 por cámara y parte con el NV12_DUMP_S de IOS-15) y la hoja de campo.
+- `matches/_plantilla.yaml` comentada campo a campo.
+- `ftrain/manifest.py`: `MatchManifest`/`SideRecording` con validación que nombra el
+  campo — luz ∈ {day, floodlight, dusk}, rotación 0/180 por lado, retranqueo y
+  altura no negativos, URIs gs://, los dos lados obligatorios, el bloque de
+  calibración (rig_uri y band_uri) y `split_hint` ∈ {train, val, sagrada}.
+- `tests/test_manifest.py` (17): la plantilla valida; cada obligatorio, enumeración
+  y URI se defiende nombrándose.
+- ruff ✅ · ruff format ✅ · pytest 138 passed, 1 skipped.
+
+**Pendiente**: la revisión del protocolo por el propietario antes del primer
+partido, que es parte de la aceptación.
+
 ## 2026-10-03 · ML-04 — datos en GCS y arranque en RunPod · 🚧 falta el pod limpio
 
 **Hecho**

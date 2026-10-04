@@ -1,0 +1,33 @@
+# Manifiesto de partido (ML-06). Copia este fichero a matches/<match_id>.yaml y
+# rellénalo EN LA CANCHA, con la hoja de campo de docs/PROTOCOLO_GRABACION.md delante.
+# Lo valida ftrain/manifest.py: un campo mal puesto falla nombrándolo.
+
+match_id: m_20260703_2030_a1b2        # el del QR del panel: m_<fecha>_<hora>_<sufijo>
+venue_id: cancha-norte                # estable entre partidos de la misma cancha
+date: "2026-07-03"
+light: floodlight                     # day | floodlight | dusk
+setback_m: 10.0                       # retranqueo del trípode a la línea, en metros (M3)
+height_m: 5.0                         # altura de las lentes sobre el césped, en metros
+
+sides:
+  left:
+    phone_model: iPhone18,3           # utsname.machine, no el nombre comercial
+    ios_version: "26.6.1"
+    tilt_deg: -8.0                    # inclinación hacia el césped, en grados
+    rotation_deg: 180                 # 0 derecho · 180 cabeza abajo (el izquierdo va girado)
+    recording_uri: gs://BUCKET/raw/m_20260703_2030_a1b2/left/left-123.mov
+    nv12_uri: gs://BUCKET/nv12/m_20260703_2030_a1b2/left/   # o null si no se volcó
+  right:
+    phone_model: iPhone18,3
+    ios_version: "26.6.1"
+    tilt_deg: -8.0
+    rotation_deg: 0
+    recording_uri: gs://BUCKET/raw/m_20260703_2030_a1b2/right/right-123.mov
+    nv12_uri: null
+
+calibration:
+  rig_uri: gs://BUCKET/raw/m_20260703_2030_a1b2/rig.json
+  band_uri: gs://BUCKET/raw/m_20260703_2030_a1b2/band.json
+
+split_hint: train                     # train | val | sagrada (la cancha sagrada JAMÁS entra en train)
+notes: ""
