@@ -1,0 +1,12 @@
+# Lista blanca de ane_lint para UN modelo: cópiala como <modelo>.yaml (ML-10).
+#
+# cola: los TIPOS de op MIL del postproceso declarado, que forman el sufijo del
+#   programa. Dentro de la cola se toleran topk/argsort/NMS y fp32; `cast` se
+#   permite siempre sin declararlo. Fuera de la cola, son violación.
+cola: []
+#  - topk
+
+# exentos: NOMBRES de salida (vars del programa) exentos del múltiplo de 16
+#   canales. Las cabezas del modelo ya están exentas solas; esto es para
+#   activaciones intermedias con excusa medida, no para callar al lint.
+exentos: []

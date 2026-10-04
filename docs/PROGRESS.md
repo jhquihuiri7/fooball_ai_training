@@ -37,6 +37,31 @@ aquí. Las que no llevan marca están ⬜.
 
 ---
 
+## 2026-10-03 · ML-10 — ane_lint: lint estático del programa MIL · ✅
+
+**Hecho**
+- `ftrain/export/ane_rules.py`: motor de reglas sobre una lista NEUTRA de ops
+  (`MilOp`: tipo, dtype, formas) — cada regla se prueba sin coremltools. Reglas:
+  conv3d, gru/lstm/rnn, scatter*, topk/argsort/NMS fuera de la cola, while_loop/
+  cond, rango 5, canales de rango 4 no múltiplos de 16, dimensiones simbólicas y
+  fp32 fuera de la cola. La cola es el sufijo contiguo de tipos declarados en la
+  lista blanca más `cast` y `const` (pegamento, no cómputo: los const de los
+  parámetros del topk cortaban la cola si no).
+- Exenciones medidas en un paquete real: las cabezas (salidas del programa) no
+  pagan el múltiplo de 16, y el preproceso que coremltools inyecta sobre la
+  entrada (`image__scaled__` y su const, en fp32 SIEMPRE con ImageType) no paga
+  ni canales ni fp32 — sin eso, todo modelo con imagen fallaba de serie.
+- Walker del proto MIL (`ops_from_spec`/`ops_from_package`, bloques anidados) y
+  CLI `tools/ane_lint.py`: JSON con las violaciones y código 1 si hay alguna.
+- Lista blanca por modelo en `configs/ane_lint/<modelo>.yaml` (plantilla
+  comentada incluida): `cola` (tipos del postproceso) y `exentos` (nombres).
+- Tests: `test_ane_rules.py` (9, puros) y `test_ane_lint_mil.py` (3, programas
+  construidos con `mb` e importorskip). Aceptación cumplida: un topk en medio
+  falla nombrando la op; humo del CLI sobre el demo de ML-09 → exit 1 con solo
+  los positivos verdaderos (activaciones de 8 canales).
+
+**Siguiente paso**: ML-11 (paridad torch/ORT/Core ML), también desbloqueada por ML-09.
+
 ## 2026-10-03 · ML-09 — export a Core ML: fp16, iOS 18, formas fijas y sha estable · ✅
 
 **Hecho**
