@@ -37,6 +37,26 @@ aquí. Las que no llevan marca están ⬜.
 
 ---
 
+## 2026-10-03 · ML-21 — ADR 0003: CVAT, formato de etiquetas y guía de anotación · 🚧 PROPUESTO
+
+**Hecho**
+- `docs/DECISIONS/0003-anotacion-cvat-y-formato.md` (PROPUESTO): CVAT autohospedado
+  frente a Label Studio — gana por la interpolación de pistas, que es el 80 % del
+  coste de anotar el balón a 30 fps; formato canónico COCO extendido EN NATIVO (el
+  lienzo caduca con cada band.json; lo nativo no, y el paso ya existe en ML-19);
+  clases de MASTER_CLASSES con atributos booleanos siempre presentes; el balón es
+  caja + atributos, nunca un punto (el heatmap entrena desde el centro y la caja
+  conserva el tamaño por banda); eventos del N0 en JSONL aparte por rig_ms; doble
+  anotación del 5 % repartida por bandas.
+- `docs/GUIA_ANOTACION.md` (normativa, con un ejemplo por caso): jugadores con
+  occluded/truncated y la máscara del campo como frontera; el balón según §40.4
+  (parte visible + occluded, estela completa + blurred, distractor_ball, nada si no
+  se ve, y unusable por debajo de 3 px); pistas que se cortan al desaparecer; qué
+  entrega un lote.
+
+**Pendiente para el ✅**: que el propietario acepte el ADR (es la aceptación de la
+tarjeta). Sin código: pytest sigue en 152 passed, 1 skipped.
+
 ## 2026-10-03 · ML-19 — bandas de distancia y paso de etiquetas nativo↔lienzo · ✅
 
 **Hecho**
