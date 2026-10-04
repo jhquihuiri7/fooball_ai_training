@@ -37,6 +37,30 @@ aquí. Las que no llevan marca están ⬜.
 
 ---
 
+## 2026-10-03 · ML-12 — vectores dorados legibles desde Swift · ✅
+
+**Hecho**
+- `ftrain/export/golden.py`: el bundle `golden/<modelo>-<versión>/` con
+  `manifest.json` (formas, dtype, layout y tolerancia OBLIGATORIA por salida y
+  por ruta — falta una y `write_bundle` falla nombrándola), arrays `.bin`
+  little-endian en orden C (dtypes explícitos `<f4 <f2 |u1 <i4`; i64 no entra,
+  igual que en los dorados v1), `detecciones.json` con lo que decide la
+  referencia, y `README.md` con el lector Swift de ~30 líneas. El zip
+  determinista es el MISMO de ML-09 (`deterministic_zip`), así que el sha256
+  ancla el bundle.
+- `tools/golden.py`: corre el lote con semilla por torch fp32, ORT fp32 y (en
+  macOS con `--package`) Core ML fp16; guarda las entradas como las entrega la
+  app (BGRA uint8 vía `to_bgra8`, fp16 planar los tensores) y decodifica con
+  `ftrain.ref` (`--decode detr|heatmap`: sigmoid + decode_boxes_to_corners, o
+  heatmap_peaks).
+- Tests (8, puros): ida y vuelta idéntica, sha estable con mtimes distintos y
+  distinto si cambia un array, tolerancias obligatorias, little-endian byte a
+  byte, i64 rechazado, versión del manifiesto comprobada, cruce BGRA.
+- Humo del CLI en el Mac: bundle con las TRES rutas, detecciones de la
+  referencia, y el mismo sha en dos ejecuciones completas.
+
+**Siguiente paso**: ML-24 (teselado/TTA, H2); ML-13 sigue esperando a ML-15/REF-33.
+
 ## 2026-10-03 · ML-11 — paridad torch ↔ ONNX ↔ Core ML · ✅
 
 **Hecho**
