@@ -25,11 +25,15 @@ lados múltiplos de 16.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import torch
 from torch import nn
 
 from ftrain.constants import ANE_CHANNEL_QUANTUM, BALL_TEMPORAL_FRAMES, PIXEL_SCALE
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 @dataclass(frozen=True, slots=True)
@@ -130,3 +134,15 @@ class RoiLite(nn.Module):
             x = up(x, atajo)
         x = self.head(x)
         return self.heatmap(x), self.offset(x)
+
+
+def build(checkpoint: Path | None = None) -> RoiLite:
+    """El builder para los CLI de export (ML-09, SPK-52).
+
+    Con checkpoint, lo carga; sin él, pesos aleatorios CON SEMILLA: la latencia
+    no depende de los pesos y así dos exports dan el mismo sha."""
+    torch.manual_seed(0)
+    modelo = RoiLite()
+    if checkpoint is not None:
+        modelo.load_state_dict(torch.load(checkpoint, map_location="cpu"))
+    return modelo.eval()

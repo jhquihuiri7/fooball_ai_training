@@ -259,9 +259,13 @@ def convert(
     import torch  # noqa: PLC0415 — perezoso adrede (grupo train)
 
     if spec.states or spec.functions:
-        # El spec ya los declara para que el YAML no cambie, pero implementarlos
-        # llega con ML-51/SPK-53 (StateType) y SPK-52 (multifunción).
-        msg = f"spec `{spec.model_name}`: states/functions aún sin implementar (ML-51, SPK-52/53)"
+        # `states` llega con ML-51/SPK-53 (StateType). La multifunción existe, pero
+        # NO aquí: cada función se convierte suelta y las fusiona
+        # tools/export_multifunction.py (SPK-52), que es quien deduplica los pesos.
+        msg = (
+            f"spec `{spec.model_name}`: `states` aún sin implementar (ML-51/SPK-53); "
+            "la multifunción se fusiona con tools/export_multifunction.py, no aquí"
+        )
         raise ExportError(msg)
 
     module = module.eval()

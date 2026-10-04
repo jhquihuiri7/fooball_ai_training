@@ -134,7 +134,10 @@ def test_states_y_functions_avisan_que_no_estan():
     from ftrain.export.coreml import convert  # noqa: PLC0415
 
     spec = ExportSpec.from_dict({**SPEC, "states": ["h"]})
-    with pytest.raises(ExportError, match="states/functions"):
+    with pytest.raises(ExportError, match="states"):
+        convert(object(), spec, {})
+    spec = ExportSpec.from_dict({**SPEC, "functions": {"global": "x"}})
+    with pytest.raises(ExportError, match="export_multifunction"):
         convert(object(), spec, {})
 
 

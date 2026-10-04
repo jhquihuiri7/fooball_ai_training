@@ -37,6 +37,23 @@ aquí. Las que no llevan marca están ⬜.
 
 ---
 
+## 2026-10-04 · SPK-52 (la pata de export) — paquete multifunción con pesos deduplicados · ✅
+
+**Hecho**
+- `tools/export_multifunction.py`: cada función (global/roi) se convierte suelta
+  con el convert de ML-09 y las fusiona `ct.utils.save_multifunction`, que
+  DEDUPLICA los pesos; manifiesto normalizado y zip determinista con sha.
+- `ftrain.ball.model.build`: el builder sembrado para los CLI (sin checkpoint,
+  pesos aleatorios con semilla: la latencia no depende de ellos y el sha sí).
+- Medido con ROI-lite real (global 896x1920 / roi 2x256x256): **1,036x el peso
+  de un export suelto** (aceptación: ≤1,1x) ✓, y en el Mac las dos funciones
+  cargan por `function_name` y predicen con sus formas.
+- La guardia de ML-09 ahora dice la verdad: `functions` no va dentro de
+  `convert` — la fusión es de este tool; `states` sigue esperando a ML-51.
+
+Las latencias por función y el coste de cambiar se miden en el iPhone
+(football-ai-capture, SPK-52).
+
 ## 2026-10-03 · ML-24 — teselado nativo, TTA y fusión · ✅
 
 **Hecho**
