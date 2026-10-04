@@ -13,7 +13,7 @@ aquí. Las que no llevan marca están ⬜.
 
 | EPIC | Qué | Tareas |
 |---|---|---|
-| ML-E1 | Infraestructura y contrato del repo | ML-01 ✅ · ML-02 ✅ · ML-03 ✅ · ML-04 · ML-05 ✅ |
+| ML-E1 | Infraestructura y contrato del repo | ML-01 ✅ · ML-02 ✅ · ML-03 ✅ · ML-04 🚧 · ML-05 ✅ |
 | ML-E2 | Campaña de datos: grabación, ingesta, extracción y anotación | ML-06 · ML-07 · ML-08 · ML-17 · ML-18 · ML-19 · ML-20 · ML-21 · ML-22 · ML-23 · ML-58 |
 | ML-E3 | Autoanotación con maestro y players-v1 | ML-24 · ML-25 · ML-26 · ML-27 · ML-28 · ML-29 · ML-30 · ML-31 |
 | ML-E4 | Jugadores: D-FINE-N a 1920×576 | ML-15 ✅ · ML-16 · ML-32 · ML-33 · ML-34 · ML-35 |
@@ -36,6 +36,30 @@ aquí. Las que no llevan marca están ⬜.
 | T6 | Verificación numérica torch vs onnxruntime (< 1e-3) | ✅ **9,54e-06** |
 
 ---
+
+## 2026-10-03 · ML-04 — datos en GCS y arranque en RunPod · 🚧 falta el pod limpio
+
+**Hecho**
+- `docs/DATOS.md`: el árbol del bucket (raw/, nv12/, frames/, labels/, datasets/,
+  models/, golden/, runs/) y la política — versiones INMUTABLES, sha256 por fichero
+  en sidecar, credenciales solo por entorno.
+- `ftrain/storage.py`: la envoltura de `gcloud storage` (cp, ls, cat del sidecar,
+  exists, download) con runner inyectable y `dry_run` que deja las órdenes exactas
+  en `commands`. El bucket sale de FAI_GCS_BUCKET y de las credenciales solo se
+  comprueba que GOOGLE_APPLICATION_CREDENTIALS exista: su valor no aparece en
+  órdenes, errores ni logs. La subida es idempotente por sha (mismo sha → ni un cp).
+- `tools/runpod_bootstrap.sh` (modelado sobre export_on_vm.sh): clona AL COMMIT,
+  `uv sync --group train --group ref`, autentica gcloud escribiendo la clave que
+  llega por GOOGLE_APPLICATION_CREDENTIALS_JSON a un fichero 600 (jamás por argv ni
+  por la salida) y baja la versión del dataset con caché en el volumen de red
+  (/workspace/cache): inmutable, así que lo cacheado no caduca.
+- `tests/test_storage.py` (7): sin bucket y sin credenciales fallan nombrando la
+  variable; el dry-run congela las órdenes exactas; subir dos veces el mismo sha no
+  resube; un contenido distinto sí; la ruta de la clave no aparece en ninguna orden.
+- ruff ✅ · ruff format ✅ · pytest 121 passed, 1 skipped (en el Mac de referencia).
+
+**Pendiente para el ✅**: la pasada a mano en un pod limpio (necesita la cuenta de
+servicio de GCS y el bucket creados — propietario); se anota aquí al hacerla.
 
 ## 2026-10-03 · ML-03 — la referencia Python de football-ai, fijada por commit · ✅
 
