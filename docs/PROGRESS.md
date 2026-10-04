@@ -14,7 +14,7 @@ aquí. Las que no llevan marca están ⬜.
 | EPIC | Qué | Tareas |
 |---|---|---|
 | ML-E1 | Infraestructura y contrato del repo | ML-01 ✅ · ML-02 ✅ · ML-03 ✅ · ML-04 🚧 · ML-05 ✅ |
-| ML-E2 | Campaña de datos: grabación, ingesta, extracción y anotación | ML-06 ✅ · ML-07 ✅ · ML-08 · ML-17 · ML-18 · ML-19 · ML-20 · ML-21 · ML-22 · ML-23 · ML-58 |
+| ML-E2 | Campaña de datos: grabación, ingesta, extracción y anotación | ML-06 ✅ · ML-07 ✅ · ML-08 · ML-17 · ML-18 · ML-19 ✅ · ML-20 · ML-21 · ML-22 · ML-23 · ML-58 |
 | ML-E3 | Autoanotación con maestro y players-v1 | ML-24 · ML-25 · ML-26 · ML-27 · ML-28 · ML-29 · ML-30 · ML-31 |
 | ML-E4 | Jugadores: D-FINE-N a 1920×576 | ML-15 ✅ · ML-16 · ML-32 · ML-33 · ML-34 · ML-35 |
 | ML-E5 | Balón: heatmap ROI-lite de 3 frames en gris | ML-14 ✅ · ML-36 · ML-37 · ML-38 · ML-39 · ML-40 · ML-41 · ML-42 |
@@ -36,6 +36,30 @@ aquí. Las que no llevan marca están ⬜.
 | T6 | Verificación numérica torch vs onnxruntime (< 1e-3) | ✅ **9,54e-06** |
 
 ---
+
+## 2026-10-03 · ML-19 — bandas de distancia y paso de etiquetas nativo↔lienzo · ✅
+
+**Hecho**
+- `ftrain/bands.py`: `load_band_spec` lee el band.json de REF-29 (los dos lados; la
+  rotación por lado viene del manifiesto de ML-06, con el nominal «izquierdo
+  invertido» por defecto); `band_of(d)` sobre DISTANCE_BANDS_M (20.0 ya es la banda
+  [20,40)); la distancia por homografía (ref `PitchModel.image_to_pitch` + la
+  posición del soporte de `recover_camera`) o por la tabla fila→metros del spec
+  (interpolada, sujetando en los extremos); y el viaje nativo↔lienzo con la MISMA
+  `BandGeometry` de la referencia vía la fachada — la rotación de 180° se aplica y
+  deshace sola, una caja no se parte en la junta (la región la decide el centro,
+  convención REF-21), y una etiqueta en la franja enmascarada del código o fuera de
+  la banda queda MARCADA (`status`), nunca perdida en silencio. El código manda
+  sobre todo: se pinta en el (0,0) de lo capturado en los dos montajes.
+- La fachada `ftrain/ref.py` gana BandGeometry, recover_camera, strip_height y
+  TIMECODE_BITS (test_ref acepta constantes); el band.json de REF-29 ganó en el
+  repo de detección la tabla `row_to_m` como campo PASANTE (anclas geométricas:
+  densas en el campo cercano, donde la perspectiva estira los metros por fila).
+- `tests/test_bands.py` (7): ida y vuelta < 0,5 px, la rotación contada y
+  deshecha, la caja entera en la junta del mosaico, el código y lo de fuera
+  marcados, y la banda por homografía y por tabla coincidiendo en ±2 m sobre la
+  nominal sintética.
+- ruff ✅ · ruff format ✅ · pytest 152 passed, 1 skipped.
 
 ## 2026-10-03 · ML-07 — verificación de grabaciones · ✅
 

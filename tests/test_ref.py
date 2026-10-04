@@ -31,6 +31,10 @@ def test_cada_nombre_sale_del_modulo_de_la_referencia_que_dice():
 
     for nombre, modulo in ref.ORIGINS.items():
         objeto = getattr(ref, nombre)
+        # Casi todo son funciones o clases; TIMECODE_BITS es la constante del
+        # ancho del código, que ML-19 necesita tal cual (un int no tiene módulo).
+        if isinstance(objeto, int):
+            continue
         assert callable(objeto), nombre
         assert objeto.__module__ == modulo, nombre
 

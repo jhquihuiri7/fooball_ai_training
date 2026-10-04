@@ -25,6 +25,11 @@ ORIGINS: Final = {
     "heatmap_peaks": "libs.vision.postprocess",
     "load_registry": "libs.vision.registry",
     "compose_band_input": "libs.vision.band",
+    # ML-19: el paso nativo↔lienzo usa la MISMA geometría que la app, no una copia.
+    "BandGeometry": "libs.vision.band",
+    "recover_camera": "libs.vision.band",
+    "strip_height": "libs.vision.source.timecode",
+    "TIMECODE_BITS": "libs.vision.source.timecode",
 }
 """Cada nombre que expone la fachada, con el módulo de `libs.vision` del que sale."""
 
