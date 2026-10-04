@@ -37,6 +37,30 @@ aquí. Las que no llevan marca están ⬜.
 
 ---
 
+## 2026-10-03 · ML-11 — paridad torch ↔ ONNX ↔ Core ML · ✅
+
+**Hecho**
+- `ftrain/export/parity.py`: comparadores puros (max|Δ| y Δ relativo por salida,
+  peor delta del lote), decodificadores de tarea enchufables (detector: Δrecall
+  por banda y desplazamiento del centro, con `fallback_band_of` de franjas
+  horizontales hasta que ML-13 enchufe la tabla fila→metros; heatmap: Δ del pico;
+  spotter: Δlogits), lote con semilla (u8 HWC para imágenes, fp32 para tensores)
+  y runners de torch, onnxruntime y Core ML (CPU_AND_NE / CPU_ONLY, solo macOS).
+- `tools/parity.py`: el CLI corre el mismo lote por los tres backends, escribe el
+  informe JSON y sale con 1 si algún par supera su umbral. torch↔ORT conserva la
+  regla del repo (1e-3); el de Core ML sale de `parity.atol` de la ficha
+  (`--ficha`) o de `--atol-coreml`.
+- Tests (11): puros en cualquier SO; ORT contra numpy sobre un .onnx sintético
+  (ojo: el onnx instalado escribe IR 14 y ORT lee hasta 13 — el test fija
+  `ir_version`); torch↔ORT < 1e-3 con una red pequeña; y en el Mac aparece y
+  PASA la columna de Core ML (CPU_ONLY, delta < 5e-2). Humo del CLI: violación
+  forzada → código 1 e informe escrito.
+
+**Qué quedó fuera**: el Δrecall usa franjas horizontales de la imagen como bandas
+provisionales; la tabla real fila→metros del band.json entra con ML-13.
+
+**Siguiente paso**: ML-24 (teselado/TTA, H2) o ML-12 cuando toque por orden.
+
 ## 2026-10-03 · ML-10 — ane_lint: lint estático del programa MIL · ✅
 
 **Hecho**
