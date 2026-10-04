@@ -1,0 +1,18 @@
+# Lista blanca de ane_lint para D-FINE-N (ML-16).
+#
+# No hay cola: el wrapper no lleva postproceso (los 300 queries salen crudos).
+cola: []
+
+exentos: []
+
+# El topk del selector de queries del decoder (y el de los stats del LQE) son
+# ARQUITECTURA de D-FINE, no postproceso: el modelo no existe sin ellos. Caen
+# fuera del ANE una vez por frame y su coste real lo mide SPK-51 (ops_off_ane).
+permitidos:
+  - topk
+
+# Hallazgos CONOCIDOS que este yaml no calla (ML-16, para REF-33/ADR 0020):
+# la atención deformable usa tensores de rango 5 (~30 ops) y el HGNetv2-B0
+# preentrenado trae canales que no son múltiplos de 16 (~90 ops). El lint
+# sale con 1 sobre este modelo A PROPÓSITO: es la foto de lo que no es
+# ANE-limpio, y el % real en el ANE lo decide el banco del iPhone (SPK-51).

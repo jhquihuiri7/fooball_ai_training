@@ -37,6 +37,48 @@ aquí. Las que no llevan marca están ⬜.
 
 ---
 
+## 2026-10-03 · ML-16 — D-FINE-N COCO a 1920×576, exportado y con su fp16 medido · ✅ criterios (🚧 subida a GCS, espera el bucket de ML-04)
+
+**Hecho**
+- `ftrain/players/dfine.py`: `build()` desde la config de DEIM (YAMLConfig,
+  `eval_spatial_size` nuestro, HGNetv2 sin pretrained), checkpoint EMA con los
+  búferes `decoder.anchors/valid_mask` filtrados (son función del tamaño y se
+  regeneran), deploy, wrapper → `logits [1,300,80]` y `boxes [1,300,4]` cxcywh
+  en [0,1], sin PostProcessor; y `export_onnx()` (opset 17, TODO estático,
+  formas de salida fijadas tras `shape_inference`). `_patch_integral`: el
+  `F.linear(x, project)` del DFL usa un VECTOR de pesos y MIL exige rango 2 —
+  se reescribe como matmul con columna [R,1], misma cuenta, cero aproximación.
+- `transformers` al grupo train: calflops lo importa AL IMPORTARSE
+  (`engine.misc` → profiler_utils → calflops → transformers); la nota vieja de
+  pyproject («su código no lo importa») era falsa por esa vía. Anotado en
+  DEPENDENCIES.md en el mismo commit.
+- `tools/dfine_dap.py`: ΔAP torch fp32 ↔ Core ML fp16 sobre COCO val2017 con
+  letterbox (gris 114, esquina, sin deformar) y decode DETR top-300.
+- `configs/ane_lint/dfine-n.yaml`: `permitidos: [topk]` con la excusa escrita;
+  los DOS TopK del grafo (selector de queries y stats del LQE) son arquitectura
+  de D-FINE, no postproceso — «sin topk en el grafo» literal es imposible aquí.
+
+**Medido (banda 576×1920; el retranqueo 512×1536 exporta y linta igual)**
+- torch↔ORT: por índice max|Δ| ≈ 1.0, pero es REORDENACIÓN del topk de queries
+  (filas equivalentes intercambiadas entre backends); sobre valores ORDENADOS
+  max|Δ| = **3.4e-04 < 1e-3** ✓ (la regla del repo, bien planteada para DETR).
+- ane_lint con su lista blanca: **orden-fuera-de-cola = 0** ✓. El yaml no calla
+  el resto: canales 87, rango-5 33 (atención deformable), fp32 3 → exit 1 a
+  propósito: es la foto de lo que NO es ANE-limpio, para REF-33/SPK-51.
+- **ΔAP fp16 = −0.28 puntos AP** (500 img; all-classes 9.95→10.22, person
+  4.18→4.28: fp16 ni resta) ✓ objetivo ≤ 1.0.
+- El harness está validado: a 640×640 (forma nativa) da **49.2 AP** en 100 img
+  (paper: 42.8 en las 5k). El AP bajo a 1920×576 es REAL: el COCO-preentrenado
+  se degrada fuerte en la forma de banda sin afinar — la razón de ser de
+  ML-32/ML-33, y dato para REF-33.
+
+**Qué quedó fuera**: la subida de los paquetes a GCS para SPK-51 — espera el
+bucket de ML-04 (propietario). Los artefactos se regeneran con
+`ftrain.players.dfine` + `tools/export_coreml.py --builder
+ftrain.players.dfine:build_band` en minutos.
+
+**Siguiente paso**: ML-24 (teselado/TTA, H2).
+
 ## 2026-10-03 · ML-13 — ficha v2 para registry.yaml · ✅
 
 **Hecho**

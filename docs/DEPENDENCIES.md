@@ -32,9 +32,7 @@ admiten y van con su aviso.
 | faster-coco-eval | Apache-2.0 | Lo importa DEIM para cargar y evaluar COCO (ML-15). Licencia leída en su repositorio: PyPI no la declara |
 | scipy | BSD-3 | Lo importa DEIM (`linear_sum_assignment` del emparejado) |
 | calflops | MIT | Lo importa DEIM al arrancar (`engine/misc`). Arrastra accelerate y huggingface-hub, Apache-2.0 los dos |
-
-DEIM también lista `transformers` en su `requirements.txt`, pero su código no lo importa en
-el commit fijado: no se instala.
+| transformers | Apache-2.0 | No lo importa DEIM, pero sí calflops **al importarse** (`flops_counter_hf`): sin él, `engine.misc` ni carga (ML-16). Arrastra tokenizers y regex, Apache-2.0 los dos |
 
 ## `apple` — opt-in, Linux y macOS (ML-05)
 
