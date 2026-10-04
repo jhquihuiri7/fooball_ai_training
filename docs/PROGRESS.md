@@ -37,6 +37,31 @@ aquí. Las que no llevan marca están ⬜.
 
 ---
 
+## 2026-10-03 · ML-09 — export a Core ML: fp16, iOS 18, formas fijas y sha estable · ✅
+
+**Hecho**
+- `ftrain/export/coreml.py`: `ExportSpec` desde YAML (entradas ImageType RGB/BGR con
+  escala 1/255 o TensorType fp16; los nombres de salida son el contrato),
+  `convert()` por `torch.export` + `run_decompositions({})` (coremltools no traga el
+  dialecto TRAINING de torch 2.14) con `jit.trace` de respaldo, `ct.convert` a
+  mlprogram FLOAT16 iOS 18, renombrado de salidas sobre UNA copia del spec (cada
+  `get_spec()` devuelve una nueva: renombrar sobre copias sueltas se perdía) y
+  `user_defined_metadata` todo en texto.
+- El sha256 estable: `normalize_manifest()` reescribe los UUIDs del `Manifest.json`
+  como uuid5 de su ruta y `deterministic_zip()` fija orden, fecha (1980) y
+  atributos. Dos exports del mismo modelo dan el mismo fichero.
+- `tools/export_coreml.py`: CLI `--spec --builder modulo:funcion --checkpoint --out`
+  que imprime `{package, sha256}` para la ficha v2 del registro.
+- `tests/test_export_coreml.py`: 6 tests — spec, metadatos y zip puros (corren en
+  Windows) + conversión real con importorskip. **En el Mac predice**: el paquete
+  normalizado abre y `predict()` devuelve `heatmap (1,1,32,32)`.
+
+**Qué quedó fuera**: StateType y multifunción. El spec ya declara `states` y
+`functions` (el YAML no cambiará), pero `convert()` falla con un mensaje claro si
+aparecen: implementarlos llega con ML-51/SPK-53 y SPK-52.
+
+**Siguiente paso**: ML-10 (`ane_lint`), que ya está desbloqueada.
+
 ## 2026-10-03 · ML-21 — ADR 0003: CVAT, formato de etiquetas y guía de anotación · 🚧 PROPUESTO
 
 **Hecho**
