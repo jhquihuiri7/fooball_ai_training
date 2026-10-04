@@ -63,6 +63,13 @@ ref = [
     "opencv-python-headless>=4.10",
 ]
 
+# data — opt-in: uv sync --group data. La verificacion de grabaciones (ML-07) abre los
+# .mov con PyAV. La rueda empaqueta un FFmpeg con partes GPL: aqui solo DECODIFICA y la
+# herramienta es interna, no se distribuye (docs/DEPENDENCIES.md).
+data = [
+    "av>=12",
+]
+
 dev = [
     "pytest>=8.3",
     "ruff>=0.8",

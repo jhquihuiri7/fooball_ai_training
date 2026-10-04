@@ -50,6 +50,12 @@ el commit fijado: no se instala.
 | scipy | BSD-3 | La importa el postproceso de la referencia (`maximum_filter`, en los picos del heatmap) |
 | opencv-python-headless | Apache-2.0 | La importan la homografía del campo y la franja de la referencia |
 
+## `data` — opt-in, verificación de grabaciones (ML-07)
+
+| Paquete | Licencia | Notas |
+|---|---|---|
+| av (PyAV) | BSD-3 | Abre los `.mov` del soporte. La rueda empaqueta un FFmpeg con partes GPL: aquí solo DECODIFICA y la herramienta es interna; no se distribuye con ningún artefacto |
+
 ## Receta y pesos de los jugadores — se clonan y se bajan, fijados (ML-15)
 
 `uv run python tools/fetch_deim.py` los deja en `third_party/DEIM` y `models/pretrained/`,

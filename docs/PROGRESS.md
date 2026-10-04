@@ -14,7 +14,7 @@ aquí. Las que no llevan marca están ⬜.
 | EPIC | Qué | Tareas |
 |---|---|---|
 | ML-E1 | Infraestructura y contrato del repo | ML-01 ✅ · ML-02 ✅ · ML-03 ✅ · ML-04 🚧 · ML-05 ✅ |
-| ML-E2 | Campaña de datos: grabación, ingesta, extracción y anotación | ML-06 ✅ · ML-07 · ML-08 · ML-17 · ML-18 · ML-19 · ML-20 · ML-21 · ML-22 · ML-23 · ML-58 |
+| ML-E2 | Campaña de datos: grabación, ingesta, extracción y anotación | ML-06 ✅ · ML-07 ✅ · ML-08 · ML-17 · ML-18 · ML-19 · ML-20 · ML-21 · ML-22 · ML-23 · ML-58 |
 | ML-E3 | Autoanotación con maestro y players-v1 | ML-24 · ML-25 · ML-26 · ML-27 · ML-28 · ML-29 · ML-30 · ML-31 |
 | ML-E4 | Jugadores: D-FINE-N a 1920×576 | ML-15 ✅ · ML-16 · ML-32 · ML-33 · ML-34 · ML-35 |
 | ML-E5 | Balón: heatmap ROI-lite de 3 frames en gris | ML-14 ✅ · ML-36 · ML-37 · ML-38 · ML-39 · ML-40 · ML-41 · ML-42 |
@@ -36,6 +36,27 @@ aquí. Las que no llevan marca están ⬜.
 | T6 | Verificación numérica torch vs onnxruntime (< 1e-3) | ✅ **9,54e-06** |
 
 ---
+
+## 2026-10-03 · ML-07 — verificación de grabaciones · ✅
+
+**Hecho**
+- Grupo `data` nuevo (PyAV, BSD-3, anotado en DEPENDENCIES.md: la rueda lleva un
+  FFmpeg con partes GPL que aquí solo DECODIFICA y no se distribuye).
+- `ftrain/recording.py`: `check_recording` con umbrales inyectables
+  (`RecordingLimits`; los de verdad en constants.py con unidades) — códec/forma,
+  30±0,1 fps, bitrate medio ≥40 Mbit/s, rigMs legible con LA REFERENCIA en ≥99 % de
+  una muestra a 1 fps y estrictamente monótono — y `check_pair_overlap`: el solape
+  de rigMs entre cámaras sobre la UNIÓN de lo grabado (una cámara que arranca tarde
+  cuenta en contra). Informe JSON apto tal cual.
+- `tools/check_recording.py`: 1 o 2 ficheros, `-o informe.json`, sale 0/1.
+- `tests/test_recording.py` (7): sintéticos mpeg4 con el código pintado por la
+  referencia — el bueno OK; sin código, a 25 fps, retrocediendo, flaco de bitrate y
+  de códec equivocado FALLAN nombrando el motivo; el solape se hunde si una cámara
+  llega tarde.
+- **Aceptación con grabación real** (left-1791038890-2.mov del soporte, 174,8 s):
+  OK en todo — hevc 3840×2160, 30,015 fps, 45,1 Mbit/s, 174/174 códigos legibles y
+  monótonos.
+- ruff ✅ · ruff format ✅ · pytest 145 passed, 1 skipped.
 
 ## 2026-10-03 · ML-06 — protocolo de grabación y manifiesto de partido · ✅ (protocolo pendiente de revisión del propietario)
 

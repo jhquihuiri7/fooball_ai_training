@@ -80,3 +80,37 @@ de la caja en los jugadores y el del pico en el balón."""
 ONNX_VERIFY_TOL: Final = 1e-3
 """Diferencia absoluta máxima entre las salidas de torch y de onnxruntime sobre la misma
 entrada (CLAUDE.md §1). Con T-DEED, T6 midió 9,54e-06."""
+
+
+# --------------------------------------------------------------------------- #
+# Verificación de grabaciones (ML-07)
+# --------------------------------------------------------------------------- #
+
+RECORDING_WIDTH: Final = 3840
+"""Píxeles. Ancho que graba el soporte: 4K, la verdad del partido (ADR 0012)."""
+
+RECORDING_HEIGHT: Final = 2160
+"""Píxeles. Alto de la grabación del soporte."""
+
+RECORDING_FPS: Final = 30.0
+"""Hz. Cadencia de la grabación."""
+
+RECORDING_FPS_TOL_HZ: Final = 0.1
+"""Hz de margen sobre la cadencia declarada: 30±0,1. Más desvío es un modo de
+cámara mal puesto, no jitter."""
+
+RECORDING_MIN_BITRATE_BPS: Final = 40_000_000
+"""Bits por segundo mínimos. La app graba HEVC a 45 Mbit/s; por debajo de 40 algo
+recomprimió el fichero por el camino y ya no sirve de dataset."""
+
+RECORDING_SAMPLE_INTERVAL_S: Final = 1.0
+"""Segundos entre fotogramas muestreados al leer el código de tiempo: uno por
+segundo basta para legibilidad y monotonía sin decodificar el partido entero."""
+
+RECORDING_MIN_TIMECODE_READABLE: Final = 0.99
+"""Fracción mínima de la muestra con rigMs legible. Un código ilegible es un
+fotograma que el emparejado no puede usar."""
+
+RECORDING_MIN_RIG_OVERLAP: Final = 0.95
+"""Fracción mínima del partido en la que los rigMs de las dos cámaras se solapan:
+por debajo, una de las dos arrancó tarde o murió pronto."""
