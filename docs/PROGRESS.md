@@ -37,6 +37,33 @@ aquí. Las que no llevan marca están ⬜.
 
 ---
 
+## 2026-10-03 · ML-13 — ficha v2 para registry.yaml · ✅
+
+**Hecho**
+- `ftrain/export/ficha.py`: `Ficha` (dataclasses por bloque: `InputBlock`,
+  `OutputBlock`, `OnnxArtifact`, `CoremlArtifact`, `ParityBlock`) → `to_entry()`
+  valida AL CONSTRUIR las mismas coherencias que el lector de la referencia
+  (postprocess↔box_format, heatmap_stride/nms_iou condicionales, frames 3 →
+  gray_temporal, compute_units solo cpu_and_ne) y `render_registry()` escribe el
+  documento v2 entero. `onnx_facts()` lee formas/nombres/opset/sha del `.onnx` y
+  `coreml_facts()` lee target (specificationVersion→iOS) y precisión (fp16 si el
+  programa MIL la usa, vía el walker de ML-10) del `.mlpackage`.
+- `tools/export_onnx.py` pasa a leer el `.onnx` con `onnx_facts` y delega su
+  `sha256_of` en el de ML-09, sin cambiar un carácter de la ficha de tdeed-snb.
+- Dos cosas medidas contra el commit FIJADO de la referencia: `ane_cost_pct` es
+  obligatorio en artifacts.coreml (el lector lo exige; la ficha lo refleja), y
+  `analysis_zone` NO existe en sus REGIONS (full_frame, playable_band, roi) —
+  la tarjeta la menciona, manda la referencia; anotado en el docstring.
+- Tests (5): entrada completa y render, coherencias que saltan al construir,
+  `onnx_facts` sobre un .onnx sintético, **contrato**: `ref.load_registry` carga
+  un registro con la ficha detr (coreml+parity) y la heatmap (frames 3) sin
+  error, y `coreml_facts` sobre un mlpackage real (min_ios 18, fp16).
+
+**Aceptación**: load_registry de la referencia carga la ficha generada ✓; los
+tests de T5 siguen en verde (30 passed en test_tools) ✓.
+
+**Siguiente paso**: ML-16 si está libre; si no, ML-24 (H2).
+
 ## 2026-10-03 · ML-12 — vectores dorados legibles desde Swift · ✅
 
 **Hecho**

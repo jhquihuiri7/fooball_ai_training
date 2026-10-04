@@ -317,14 +317,10 @@ def verify(reference: tuple[Any, Any], onnx_path: Path, clip: Any) -> float:
 
 
 def sha256_of(path: Path) -> str:
-    """SHA-256 del fichero, a trozos. Igual que lo calcula el repo de detección."""
-    import hashlib  # noqa: PLC0415
+    """SHA-256 del fichero, a trozos. El mismo que usa ftrain.export (ML-09)."""
+    from ftrain.export.coreml import sha256_of as _sha256  # noqa: PLC0415
 
-    digest = hashlib.sha256()
-    with path.open("rb") as fichero:
-        while trozo := fichero.read(1 << 20):
-            digest.update(trozo)
-    return digest.hexdigest()
+    return _sha256(path)
 
 
 def registry_block(onnx_path: Path, spec: ExportSpec, *, name: str = "tdeed-snb") -> str:
@@ -332,16 +328,15 @@ def registry_block(onnx_path: Path, spec: ExportSpec, *, name: str = "tdeed-snb"
 
     **Las formas y los nombres se leen del `.onnx` exportado**, no de la configuración con
     la que se exportó. Es el mismo principio de siempre: lo que importa es lo que hay en
-    el fichero, porque es lo que se va a ejecutar.
+    el fichero, porque es lo que se va a ejecutar. Desde ML-13 la lectura la hace
+    `ftrain.export.ficha.onnx_facts`; esta ficha sigue siendo la v1 de tdeed-snb.
     """
-    import onnx  # noqa: PLC0415
+    from ftrain.export.ficha import onnx_facts  # noqa: PLC0415
 
-    modelo = onnx.load(str(onnx_path), load_external_data=False)
-    entrada = modelo.graph.input[0]
-    forma = [d.dim_value for d in entrada.type.tensor_type.shape.dim]
-    salidas = [
-        (s.name, [d.dim_value for d in s.type.tensor_type.shape.dim]) for s in modelo.graph.output
-    ]
+    datos = onnx_facts(onnx_path)
+    entrada_nombre = datos.input_name
+    forma = list(datos.input_shape)
+    salidas = [(nombre, list(forma_salida)) for nombre, forma_salida in datos.outputs]
     significados = {LOGITS_NAME: "logits", DISPLACEMENT_NAME: "displacement"}
 
     lineas = [
@@ -349,14 +344,14 @@ def registry_block(onnx_path: Path, spec: ExportSpec, *, name: str = "tdeed-snb"
         '    version: "0.1.0"',
         "    task: spotting",
         f"    path: onnx/{onnx_path.name}",
-        f"    sha256: {sha256_of(onnx_path)}",
+        f"    sha256: {datos.sha256}",
         "    license: >",
         "      pesos de T-DEED (GPL-3.0) afinados sobre SoccerNet Ball Action Spotting.",
         "      SOLO PARA MEDIR: ni el código ni los datos son de uso comercial.",
         f'    exported: "{_today()}"',
         f"    opset: {OPSET}",
         "    input:",
-        f"      name: {entrada.name}",
+        f"      name: {entrada_nombre}",
         f"      shape: {forma}",
         f"      layout: {LAYOUT}",
         "      color: RGB",
