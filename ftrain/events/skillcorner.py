@@ -9,8 +9,8 @@
   para el jugador que está en los dos; si solo está en uno, se toma de ese.
 - **Etiquetas:** de las posesiones de `dynamic_events.csv`:
   - la reanudación que precede a una posesión (`game_interruption_before`) se fecha al
-    empezar esa posesión: saque de banda, falta, saque de puerta y córner; tras un gol,
-    el saque inicial;
+    ACABAR esa posesión, cuando quien reanuda pone el balón en juego: saque de banda,
+    falta, saque de puerta y córner; tras un gol, el saque inicial;
   - el gol se fecha al acabar la posesión que lo marca (`game_interruption_after`);
   - además, un saque inicial al empezar cada parte.
   Los penaltis no son una clase de N3 y se dejan fuera.
@@ -95,7 +95,9 @@ def labels_from_events(
             continue
         antes = RESTART_LABELS.get(_kind(r.get("game_interruption_before", "")))
         if antes is not None:
-            crudas.append((int(r["frame_start"]) / fps, antes))
+            # El balón se pone en juego al acabar la posesión de quien reanuda (mediana de
+            # 1 s después de cogerlo, p90 de 3-4 s): ese es el instante físico del evento.
+            crudas.append((int(r["frame_end"]) / fps, antes))
         if _kind(r.get("game_interruption_after", "")) == GOAL_INTERRUPTION:
             crudas.append((int(r["frame_end"]) / fps, "goal"))
     salida: list[tuple[float, str]] = []

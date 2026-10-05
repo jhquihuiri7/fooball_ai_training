@@ -20,7 +20,7 @@ aquí. Las que no llevan marca están ⬜.
 | ML-E5 | Balón: heatmap ROI-lite de 3 frames en gris | ML-14 ✅ · ML-36 ✅ · ML-37 · ML-38 · ML-39 · ML-40 · ML-41 · ML-42 |
 | ML-E6 | Export a Core ML y validación | ML-09 · ML-10 · ML-11 · ML-12 · ML-13 · ML-43 · ML-45 |
 | ML-E7 | Spikes de modelo en el iPhone 17 | SPK-50 · SPK-51 · SPK-52 · SPK-53 · SPK-54 · SPK-56 |
-| ML-E8 | Eventos aprendidos N3 y N4 | ML-47 🚧 · ML-48 · ML-49 · ML-50 · ML-51 · ML-52 · ML-53 · ML-54 · ML-55 · ML-57 |
+| ML-E8 | Eventos aprendidos N3 y N4 | ML-47 🚧 · ML-48 ✅ · ML-49 · ML-50 🚧 · ML-51 · ML-52 · ML-53 · ML-54 · ML-55 · ML-57 |
 | ML-E9 | Retiradas | ML-46 ✅ (en el repo de detección) |
 
 ## Línea base de T-DEED, congelada (ADR 0002)
@@ -36,6 +36,53 @@ aquí. Las que no llevan marca están ⬜.
 | T6 | Verificación numérica torch vs onnxruntime (< 1e-3) | ✅ **9,54e-06** |
 
 ---
+
+## 2026-10-05 · ML-48 ✅ y ML-50 🚧 — SkillCorner a rejillas de N3 y el primer preentreno en el Mac
+
+Se construye según el ADR 0004, que sigue PROPUESTO. El propietario pidió seguir sin
+esperar su respuesta, y queda pendiente de su revisión.
+
+**Hecho**
+- `tools/fetch_skillcorner.py`: SkillCorner/opendata al commit `4340d27` (2026-09-14). Son
+  20 partidos de la A-League 2024/25, con tracking de la retransmisión a 10 Hz y eventos
+  dinámicos. El LICENSE del repositorio es MIT y queda comprobado; los datos no traen
+  licencia aparte, como deja escrito `PROCEDENCIA.txt`. Ocupan 1,8 GB en `datasets/`, sin
+  commit.
+- `ftrain/events/skillcorner.py`:
+  - posiciones a 105x68 con el convenio de `PitchModel`, sin equipos y con porteros;
+  - remuestreo de 10 a 7,5 Hz;
+  - etiquetas a partir de las reanudaciones de `dynamic_events`, fechadas cuando quien
+    reanuda pone el balón en juego, más el gol y el saque inicial de cada parte.
+- `ftrain/events/features.py`: rejilla de 16x10 con 7 canales (jugadores, vx, vy,
+  porteros, árbitros, balón y silbato), espejos del campo como aumento y etiqueta por
+  paso dilatada ±1.
+- `ftrain/events/tcn.py`: la TCN causal, toda en conv2d. Tiene 76 215 parámetros (tope
+  100 000) y 127 pasos de campo receptivo (17 s), con dropout en los bloques.
+  `ftrain/events/spotting.py`: decodificación por picos con supresión de ±2 s y P/R con
+  tolerancia. `tools/convert_skillcorner.py` y `tools/train_e3.py` (MPS del Mac).
+- El ADR 0004 queda alineado con la rejilla de la tarjeta (16x10, 7 canales).
+
+**Medido**
+- Conversión de los 20 partidos en 49 s, unas 33 h a 7,5 Hz. Etiquetas: córner 138,
+  saque de banda 835, saque de puerta 259, saque inicial 82, falta 396 y gol 63.
+- Preentreno: 12 partidos para entrenar, 4 para elegir umbrales y 4 para dar la cifra;
+  3000 pasos en unos 7 min en el MPS. F1 de validación por clase:
+
+  | Corrida | córner | banda | puerta | inicial | falta | gol |
+  |---|---|---|---|---|---|---|
+  | v1, sin aumento, umbrales en train | 0,10 | 0,18 | 0,03 | 0,23 | 0,03 | 0,00 |
+  | v2, espejos + dropout + umbrales aparte | 0,19 | 0,31 | 0,15 | 0,25 | 0,15 | 0,06 |
+  | v3, = v2 fechando al poner el balón en juego | 0,13 | 0,22 | 0,11 | 0,24 | 0,15 | 0,10 |
+
+  La v1 memorizaba: F1 0,93 en entrenamiento.
+
+**Lectura**: con 4 partidos de validación, la diferencia entre v2 y v3 es ruido. El
+techo probable es la señal: el tracking de retransmisión solo ve parte del campo y el
+resto lo extrapola. El N0 propio verá el campo entero fundido, y ahí está el afinado
+(ML-49) y la comparación con N1 (EV-08). Ninguna clase se automatiza con esto (ADR 0013).
+
+**Siguiente paso**: validación cruzada por partidos para una cifra estable. Después, ML-49
+cuando haya partidos propios.
 
 ## 2026-10-05 · ML-26 — evaluación por bandas (M4, R-P7-1) y tamaño del balón (M5) · ✅ el código, ⬜ las cifras
 

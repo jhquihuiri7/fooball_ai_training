@@ -108,7 +108,9 @@ def partido(tmp_path, frames=40):
 
 def test_etiquetas_de_las_posesiones(tmp_path):
     m = load_match(partido(tmp_path))
-    assert m.labels == [(1.0, "kickoff"), (2.0, "throw_in"), (3.0, "goal"), (4.5, "kickoff")]
+    # Las reanudaciones, al poner el balón en juego (el fin de la posesión de quien saca):
+    # de las dos filas del mismo saque de banda queda la primera, a 2,4 s.
+    assert m.labels == [(1.0, "kickoff"), (2.4, "throw_in"), (3.0, "goal"), (4.8, "kickoff")]
     assert m.goalkeepers == {GK}
 
 
@@ -172,3 +174,17 @@ def test_remuestreo_con_un_hueco_toma_el_vecino():
 def test_sin_eventos_solo_los_saques_de_cada_parte():
     assert labels_from_events([], [10, 27800]) == [(1.0, "kickoff"), (2780.0, "kickoff")]
     assert np.array_equal(label_timeline([], []), np.zeros(0, dtype=np.int64))
+
+
+def test_el_espejo_invierte_el_campo_y_la_velocidad():
+    from ftrain.events.features import mirror  # noqa: PLC0415
+
+    g = np.zeros((len(N3_CHANNELS), N3_GRID_H, N3_GRID_W), dtype=np.float32)
+    g[CH["players"], 2, 3] = 1.0
+    g[CH["vx"], 2, 3] = 4.0
+    g[CH["vy"], 2, 3] = -1.0
+    m = mirror(g, along=True, across=True)
+    assert m[CH["players"], N3_GRID_H - 1 - 2, N3_GRID_W - 1 - 3] == 1.0
+    assert m[CH["vx"], N3_GRID_H - 1 - 2, N3_GRID_W - 1 - 3] == -4.0
+    assert m[CH["vy"], N3_GRID_H - 1 - 2, N3_GRID_W - 1 - 3] == 1.0
+    assert np.array_equal(mirror(m, along=True, across=True), g)

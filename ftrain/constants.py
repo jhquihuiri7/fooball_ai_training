@@ -262,3 +262,6 @@ N3_MAX_PARAMS: Final = 100_000
 N3_TOLERANCE_S: Final = 2.0
 """Segundos. Tolerancia de un acierto de N3 contra la etiqueta (ADR 0004 §4), y la ventana
 de supresión de la decodificación por clase."""
+
+N3_DROPOUT: Final = 0.2
+"""Fracción de canales que apaga el dropout de cada bloque temporal de N3 al entrenar."""

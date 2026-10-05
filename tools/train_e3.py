@@ -6,8 +6,9 @@
 
 Hoy, el preentreno con SkillCorner. El afinado con partidos propios (ML-49) usa el mismo
 guion con otra carpeta. División por partidos completos, nunca por clips: los últimos
-`--val` partidos (por id) validan. Los umbrales de cada clase se eligen en los de
-entrenamiento, y la cifra se da en los de validación, enteros y con ±2 s.
+`--val` partidos (por id) dan la cifra y los `--tune` anteriores eligen los umbrales de
+cada clase; el resto entrena, con espejos del campo como aumento. La cifra va sobre
+partidos enteros y con ±2 s.
 
 Escribe en --out el checkpoint (`n3.pt`) y `report.json`: P, R y F1 por clase.
 """
@@ -28,6 +29,7 @@ from torch.nn import functional as f
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from ftrain.constants import N3_CLASSES
+from ftrain.events.features import mirror
 from ftrain.events.spotting import decode, match_events
 from ftrain.events.tcn import N3Tcn
 
@@ -39,6 +41,8 @@ WINDOW = 256
 BATCH = 32
 EVENT_CENTERED = 0.5
 """Fracción de ventanas centradas en un evento: los eventos son el 1 % de los pasos."""
+MIRROR_P = 0.5
+"""Probabilidad de cada espejo del campo (a lo largo y a lo ancho) por ventana."""
 THRESHOLDS = tuple(round(x, 2) for x in np.arange(0.1, 0.95, 0.05))
 SEED = 2026
 
@@ -71,7 +75,10 @@ def batches(
                 inicio = int(rng.integers(0, max(1, len(data[i][2]) - WINDOW)))
             _, g, y, _ = data[i]
             inicio = int(np.clip(inicio, 0, max(0, len(y) - WINDOW)))
-            xs.append(g[inicio : inicio + WINDOW])
+            ventana = g[inicio : inicio + WINDOW]
+            xs.append(
+                mirror(ventana, along=rng.random() < MIRROR_P, across=rng.random() < MIRROR_P)
+            )
             ys.append(y[inicio : inicio + WINDOW])
         yield torch.from_numpy(np.stack(xs)), torch.from_numpy(np.stack(ys))
 
@@ -109,7 +116,8 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--data", type=Path, required=True)
     ap.add_argument("--out", type=Path, required=True)
-    ap.add_argument("--val", type=int, default=2)
+    ap.add_argument("--val", type=int, default=4, help="partidos para la cifra")
+    ap.add_argument("--tune", type=int, default=4, help="partidos para elegir los umbrales")
     ap.add_argument("--steps", type=int, default=3000)
     ap.add_argument("--lr", type=float, default=1e-3)
     o = ap.parse_args(argv)
@@ -118,7 +126,7 @@ def main(argv: list[str] | None = None) -> int:
     rng = np.random.default_rng(SEED)
     device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
     data = load(o.data)
-    train, val = data[: -o.val], data[-o.val :]
+    train, tune, val = data[: -o.val - o.tune], data[-o.val - o.tune : -o.val], data[-o.val :]
     # Pesos de la pérdida: raíz del inverso de la frecuencia de cada clase en entrenamiento.
     cuenta = np.bincount(np.concatenate([y for _, _, y, _ in train]), minlength=1 + len(N3_CLASSES))
     pesos = torch.tensor(np.sqrt(cuenta.sum() / np.maximum(cuenta, 1)), dtype=torch.float32)
@@ -142,6 +150,8 @@ def main(argv: list[str] | None = None) -> int:
 
     p_train = [probabilities(model, g, device) for _, g, _, _ in train]
     t_train = [e for _, _, _, e in train]
+    p_tune = [probabilities(model, g, device) for _, g, _, _ in tune]
+    t_tune = [e for _, _, _, e in tune]
     umbrales = []
     for k, c in enumerate(N3_CLASSES):
         mejor = max(
@@ -156,11 +166,13 @@ def main(argv: list[str] | None = None) -> int:
     informe = {
         "data": str(o.data),
         "train_matches": [n for n, _, _, _ in train],
+        "tune_matches": [n for n, _, _, _ in tune],
         "val_matches": [n for n, _, _, _ in val],
         "steps": o.steps,
         "params": sum(p.numel() for p in model.parameters()),
         "thresholds": dict(zip(N3_CLASSES, umbrales, strict=True)),
         "train": evaluate(p_train, t_train, umbrales),
+        "tune": evaluate(p_tune, t_tune, umbrales),
         "val": evaluate(p_val, t_val, umbrales),
         "seconds": round(time.time() - t0),
     }

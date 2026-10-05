@@ -18,6 +18,7 @@ from ftrain.constants import (
     N3_CHANNELS,
     N3_CLASSES,
     N3_DILATIONS,
+    N3_DROPOUT,
     N3_GRID_H,
     N3_GRID_W,
     N3_TEMPORAL_KERNEL,
@@ -35,9 +36,12 @@ class _Block(nn.Module):
         super().__init__()
         self.pad = (N3_TEMPORAL_KERNEL - 1) * dilation
         self.conv = nn.Conv2d(width, width, (1, N3_TEMPORAL_KERNEL), dilation=(1, dilation))
+        # Apaga canales enteros al entrenar: con 76 000 parámetros y 16 partidos, sin esto
+        # memoriza (F1 0,93 en entrenamiento y 0,1 en validación). En inferencia no hace nada.
+        self.drop = nn.Dropout2d(N3_DROPOUT)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return f.relu(x + self.conv(f.pad(x, (self.pad, 0, 0, 0))))
+        return f.relu(x + self.drop(self.conv(f.pad(x, (self.pad, 0, 0, 0)))))
 
 
 class N3Tcn(nn.Module):

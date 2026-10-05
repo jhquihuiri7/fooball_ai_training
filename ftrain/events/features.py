@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 
     from ftrain.events.skillcorner import Match, Sample
 
-__all__ = ["cell_of", "grids", "label_timeline"]
+__all__ = ["cell_of", "grids", "label_timeline", "mirror"]
 
 CH = {nombre: k for k, nombre in enumerate(N3_CHANNELS)}
 
@@ -93,3 +93,17 @@ def label_timeline(samples: Sequence[Sample], labels: Sequence[tuple[float, str]
                 distancia[k] = abs(k - centro)
                 y[k] = N3_CLASSES.index(c) + 1
     return y
+
+
+def mirror(g: np.ndarray, *, along: bool, across: bool) -> np.ndarray:
+    """La rejilla (..., canales, alto, ancho) vista desde el otro lado: `along` invierte el
+    largo (los equipos cambian de campo) y niega vx; `across`, el ancho y vy. Un evento
+    sigue siendo el mismo evento; es el aumento de datos de N3."""
+    salida = g
+    if along:
+        salida = salida[..., ::-1].copy()
+        salida[..., CH["vx"], :, :] *= -1
+    if across:
+        salida = salida[..., ::-1, :].copy()
+        salida[..., CH["vy"], :, :] *= -1
+    return salida
