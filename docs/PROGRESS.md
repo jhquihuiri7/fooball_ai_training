@@ -20,7 +20,7 @@ aquí. Las que no llevan marca están ⬜.
 | ML-E5 | Balón: heatmap ROI-lite de 3 frames en gris | ML-14 ✅ · ML-36 ✅ · ML-37 · ML-38 · ML-39 · ML-40 · ML-41 · ML-42 |
 | ML-E6 | Export a Core ML y validación | ML-09 · ML-10 · ML-11 · ML-12 · ML-13 · ML-43 · ML-45 |
 | ML-E7 | Spikes de modelo en el iPhone 17 | SPK-50 · SPK-51 · SPK-52 · SPK-53 · SPK-54 · SPK-56 |
-| ML-E8 | Eventos aprendidos N3 y N4 | ML-47 · ML-48 · ML-49 · ML-50 · ML-51 · ML-52 · ML-53 · ML-54 · ML-55 · ML-57 |
+| ML-E8 | Eventos aprendidos N3 y N4 | ML-47 🚧 · ML-48 · ML-49 · ML-50 · ML-51 · ML-52 · ML-53 · ML-54 · ML-55 · ML-57 |
 | ML-E9 | Retiradas | ML-46 ✅ (en el repo de detección) |
 
 ## Línea base de T-DEED, congelada (ADR 0002)
@@ -36,6 +36,30 @@ aquí. Las que no llevan marca están ⬜.
 | T6 | Verificación numérica torch vs onnxruntime (< 1e-3) | ✅ **9,54e-06** |
 
 ---
+
+## 2026-10-05 · ML-47 — ADR 0004: N3 y N4 distribuibles y su formato · 🚧 PROPUESTO
+
+**Hecho**
+- `docs/DECISIONS/0004-eventos-n3-n4-distribuibles.md`. Baja a algo construible lo que el
+  ADR 0021 de football-ai ya decidió:
+  - N3: rejillas de 12×8 celdas con 2 canales (jugadores por celda y balón) a 7,5 Hz, 16 s
+    de contexto causal, TCN de ≤100.000 parámetros y 6 clases más «nada»;
+  - N4: un recorte de 448×256 por cámara a 7,5 Hz, MNv4-Conv-S destilado de DINOv2-S, TSM y
+    GRU causal, con shot y goal más «nada»; la fusión de las dos cámaras va en el maestro
+    (IOS-78);
+  - etiqueta dilatada ±1 paso, decodificación por máximo local con supresión, y los
+    umbrales en la ficha del modelo;
+  - la salida es un `mark` del N0 v1 sin campos nuevos (`source` positions o spotter, y
+    `by` n3-positions@x o n4-spotter@x). Los dos ejemplos pasan `validate_record` de
+    `libs/vision/match_log.py`;
+  - se mide por partido completo con ±2 s (N3) y ±1 s (N4): P, R, AP y error de fecha por
+    clase, contra N1 (EV-08) y contra T-DEED.
+- La tarjeta habla de `whistle` y `side`; manda el ADR 0021 (un silbato no es una marca y
+  el registro no lleva cámara). Queda anotado en el ADR.
+- `DEPENDENCIES.md`: E2E-Spot, MobileNetV4, DINOv2-S y SkillCorner como referencias o
+  datos, con su licencia.
+
+**Falta**: que el propietario acepte el ADR. Con eso empiezan ML-48 y ML-51.
 
 ## 2026-10-05 · ML-36 — trayectorias del balón para etiquetar · ✅
 

@@ -65,6 +65,15 @@ que git ignora.
 | HGNetv2 | Apache-2.0 | El backbone de D-FINE-N. Va dentro de DEIM, que lo porta de PaddleDetection |
 | Pesos `dfine_n_coco.pth` | Apache-2.0 | D-FINE-N entrenado en COCO, de las releases de D-FINE, con el sha256 fijado en el fetch. Las imágenes de COCO tienen términos mixtos: es el riesgo residual que acepta el ADR 0002. **Vetados** los `*_obj365` y `*_obj2coco`, porque Objects365 no admite uso comercial |
 
+## Referencias de diseño de N3 y N4 — se leen, no se vendorizan (ADR 0004)
+
+| Qué | Licencia | Notas |
+|---|---|---|
+| E2E-Spot (`jhong93/spot` y su paper) | BSD-3 | Diseño del spotter de N3 y N4: etiqueta dilatada, decodificación por máximo local. Se reimplementa en `ftrain/events/`; ni se clona ni se copia. Si se copiara una función, iría con su aviso BSD-3. Nunca una línea de T-DEED (guardia de ML-02) |
+| MobileNetV4-Conv-S (checkpoint de timm) | La de cada checkpoint | El backbone de N4. Se comprueba que el checkpoint elegido sea Apache-2.0 antes de usarlo (ML-52) |
+| DINOv2-S | Apache-2.0 | Solo el maestro de la destilación de N4 (ML-52); no va en ningún artefacto |
+| SkillCorner opendata | Repositorio MIT; los datos, sin licencia aparte | Preentreno de N3 (ML-48). No se vende un N3 preentrenado con ellos hasta aclararla (ADR 0021, punto abierto) |
+
 ## Herramientas externas — se ejecutan, no se distribuyen
 
 | Herramienta | Licencia | Para qué |
