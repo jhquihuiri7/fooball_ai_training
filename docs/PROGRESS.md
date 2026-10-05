@@ -139,8 +139,25 @@ techo probable es la señal: el tracking de retransmisión solo ve parte del cam
 resto lo extrapola. El N0 propio verá el campo entero fundido, y ahí está el afinado
 (ML-49) y la comparación con N1 (EV-08). Ninguna clase se automatiza con esto (ADR 0013).
 
-**Siguiente paso**: validación cruzada por partidos para una cifra estable. Después, ML-49
-cuando haya partidos propios.
+**Validación cruzada por partidos** (5 pliegues; cada uno da la cifra con 4 partidos y
+elige los umbrales con otros 4; `train_e3.py --fold k`; v3, 3000 pasos). Agregado sobre
+los 20 partidos:
+
+| Clase | Verdad | P | R | F1 | F1 por pliegue |
+|---|---|---|---|---|---|
+| córner | 138 | 0,34 | 0,43 | **0,38** | 0,22-0,48 |
+| saque de banda | 835 | 0,38 | 0,42 | **0,39** | 0,21-0,50 |
+| saque de puerta | 259 | 0,30 | 0,31 | **0,31** | 0,14-0,40 |
+| saque inicial | 82 | 0,45 | 0,51 | **0,48** | 0,25-0,68 |
+| falta | 396 | 0,25 | 0,30 | **0,27** | 0,16-0,40 |
+| gol | 63 | 0,12 | 0,19 | **0,15** | 0,06-0,22 |
+
+La división fija de antes (los 4 últimos partidos) era el pliegue más flojo: de ahí el
+0,15-0,31. Es la línea base del preentreno con SkillCorner. El objetivo de ML-50 (mejor F1
+que N1 en saque de banda y en falta) se mide con el N0 propio.
+
+**Siguiente paso**: ML-49 cuando haya partidos propios; con ellos, el afinado y la
+comparación con N1.
 
 ## 2026-10-05 · ML-26 — evaluación por bandas (M4, R-P7-1) y tamaño del balón (M5) · ✅ el código, ⬜ las cifras
 
