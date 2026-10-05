@@ -1,7 +1,7 @@
 # ADR 0003 — Anotación: CVAT, formato canónico y guía
 
 - **Fecha:** 2026-10-03
-- **Estado:** PROPUESTO (lo acepta el propietario; es la aceptación de ML-21)
+- **Estado:** ACEPTADO por el propietario el 2026-10-05 (cierra ML-21)
 - **Tarea:** ML-21 del plan de migración
   (`docs/plan-dos-moviles/entrenamiento.md` del repo de detección, rama `migracion/dos-moviles`)
 - **Afecta a:** `docs/GUIA_ANOTACION.md` (nueva), y aguas abajo ML-08 (ingesta), ML-20
