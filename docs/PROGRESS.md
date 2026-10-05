@@ -20,7 +20,7 @@ aquí. Las que no llevan marca están ⬜.
 | ML-E5 | Balón: heatmap ROI-lite de 3 frames en gris | ML-14 ✅ · ML-36 ✅ · ML-37 · ML-38 · ML-39 · ML-40 · ML-41 · ML-42 |
 | ML-E6 | Export a Core ML y validación | ML-09 · ML-10 · ML-11 · ML-12 · ML-13 · ML-43 · ML-45 |
 | ML-E7 | Spikes de modelo en el iPhone 17 | SPK-50 · SPK-51 · SPK-52 · SPK-53 · SPK-54 · SPK-56 |
-| ML-E8 | Eventos aprendidos N3 y N4 | ML-47 🚧 · ML-48 ✅ · ML-49 · ML-50 🚧 · ML-51 · ML-52 · ML-53 · ML-54 · ML-55 · ML-57 |
+| ML-E8 | Eventos aprendidos N3 y N4 | ML-47 🚧 · ML-48 ✅ · ML-49 · ML-50 🚧 · ML-51 ✅ · ML-52 · ML-53 · ML-54 · ML-55 · ML-57 |
 | ML-E9 | Retiradas | ML-46 ✅ (en el repo de detección) |
 
 ## Línea base de T-DEED, congelada (ADR 0002)
@@ -36,6 +36,28 @@ aquí. Las que no llevan marca están ⬜.
 | T6 | Verificación numérica torch vs onnxruntime (< 1e-3) | ✅ **9,54e-06** |
 
 ---
+
+## 2026-10-05 · ML-51 — el spotter N4 en streaming (modo clip y modo paso) · ✅
+
+**Hecho**
+- `ftrain/events/spotter.py`:
+  - **backbone:** MobileNetV4-Conv-S de timm (Apache-2.0), con etapas de 32, 64, 96, 128 y
+    960 canales. Se crea sin pesos: los pesos llegan con la destilación de DINOv2-S
+    (ML-52), y la licencia del checkpoint se mira entonces;
+  - **TSM causal** con estado explícito en la entrada de las etapas 1-3: 1/8 de los canales
+    viene del fotograma anterior, con slice y concat;
+  - **GRU desenrollada** con conv 1x1, sigmoid y tanh (64 canales de estado);
+  - **cabeza** por fotograma: fondo, shot, goal y el desplazamiento al instante del evento.
+- Dos modos con los mismos pesos: `forward(clip)` para entrenar y `step(frame, estado)`
+  para exportar; `initial_state` da el estado en ceros.
+- Constantes `N4_*` con su motivo.
+- Tests (3, con importorskip de torch y timm): clip y bucle de pasos coinciden con
+  Δ < 1e-5 en fp32; es causal; no hay Conv3d ni GRU/LSTM/RNN nativas ni scatter; las
+  conv internas tienen canales múltiplos de 16.
+
+**Fuera**: el export a Core ML del modo paso y la decisión sobre el estado (MLState o E/S
+explícita) son de SPK-53 y ML-55. El entrenamiento espera a ML-52 y ML-53, que necesitan
+metraje propio.
 
 ## 2026-10-05 · ML-48 ✅ y ML-50 🚧 — SkillCorner a rejillas de N3 y el primer preentreno en el Mac
 

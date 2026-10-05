@@ -265,3 +265,28 @@ de supresión de la decodificación por clase."""
 
 N3_DROPOUT: Final = 0.2
 """Fracción de canales que apaga el dropout de cada bloque temporal de N3 al entrenar."""
+
+# --------------------------------------------------------------------------- #
+# N4: el spotter de píxeles por cámara (ML-51, ADR 0004 §2)
+# --------------------------------------------------------------------------- #
+
+N4_CLASSES: Final = ("shot", "goal")
+"""Clases de N4 en el orden de la salida, detrás de la columna 0 (fondo)."""
+
+N4_INPUT_W: Final = 448
+"""Píxeles. Ancho del recorte del área de juego que ve N4 (ADR 0021 §1)."""
+
+N4_INPUT_H: Final = 256
+"""Píxeles. Alto del recorte de N4."""
+
+N4_BACKBONE: Final = "mobilenetv4_conv_small"
+"""El backbone de timm (Apache-2.0); los pesos llegan destilados de DINOv2-S (ML-52)."""
+
+N4_TSM_STAGES: Final = (1, 2, 3)
+"""Etapas del backbone en cuya entrada se desplaza en el tiempo una parte de los canales."""
+
+N4_TSM_FRACTION: Final = 8
+"""Se desplaza 1/8 de los canales: lo que propone TSM y la tarjeta de ML-51."""
+
+N4_HIDDEN: Final = 64
+"""Canales del estado de la GRU de N4: múltiplo de 16 (ANE_CHANNEL_QUANTUM)."""

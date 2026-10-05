@@ -112,12 +112,26 @@ def evaluate(
     return salida
 
 
+def split(data: list, n_val: int, n_tune: int, fold: int) -> tuple[list, list, list]:
+    """(entrenar, umbrales, cifra), por partidos. Con `fold` ≥0, validación cruzada: el
+    pliegue k da la cifra con los partidos k·n_val.., elige umbrales con los `n_tune`
+    siguientes (en círculo) y entrena con el resto. Sin pliegue, los últimos por id."""
+    if fold < 0:
+        return data[: -n_val - n_tune], data[-n_val - n_tune : -n_val], data[-n_val:]
+    n = len(data)
+    val = [data[(fold * n_val + j) % n] for j in range(n_val)]
+    tune = [data[(fold * n_val + n_val + j) % n] for j in range(n_tune)]
+    fuera = {x[0] for x in val + tune}
+    return [x for x in data if x[0] not in fuera], tune, val
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--data", type=Path, required=True)
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--val", type=int, default=4, help="partidos para la cifra")
     ap.add_argument("--tune", type=int, default=4, help="partidos para elegir los umbrales")
+    ap.add_argument("--fold", type=int, default=-1, help="pliegue de la validación cruzada (0..)")
     ap.add_argument("--steps", type=int, default=3000)
     ap.add_argument("--lr", type=float, default=1e-3)
     o = ap.parse_args(argv)
@@ -126,7 +140,7 @@ def main(argv: list[str] | None = None) -> int:
     rng = np.random.default_rng(SEED)
     device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
     data = load(o.data)
-    train, tune, val = data[: -o.val - o.tune], data[-o.val - o.tune : -o.val], data[-o.val :]
+    train, tune, val = split(data, o.val, o.tune, o.fold)
     # Pesos de la pérdida: raíz del inverso de la frecuencia de cada clase en entrenamiento.
     cuenta = np.bincount(np.concatenate([y for _, _, y, _ in train]), minlength=1 + len(N3_CLASSES))
     pesos = torch.tensor(np.sqrt(cuenta.sum() / np.maximum(cuenta, 1)), dtype=torch.float32)
