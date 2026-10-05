@@ -17,7 +17,7 @@ aquí. Las que no llevan marca están ⬜.
 | ML-E2 | Campaña de datos: grabación, ingesta, extracción y anotación | ML-06 ✅ · ML-07 ✅ · ML-08 · ML-17 · ML-18 · ML-19 ✅ · ML-20 · ML-21 · ML-22 · ML-23 · ML-58 |
 | ML-E3 | Autoanotación con maestro y players-v1 | ML-24 · ML-25 · ML-26 · ML-27 · ML-28 · ML-29 · ML-30 · ML-31 |
 | ML-E4 | Jugadores: D-FINE-N a 1920×576 | ML-15 ✅ · ML-16 · ML-32 · ML-33 · ML-34 · ML-35 |
-| ML-E5 | Balón: heatmap ROI-lite de 3 frames en gris | ML-14 ✅ · ML-36 · ML-37 · ML-38 · ML-39 · ML-40 · ML-41 · ML-42 |
+| ML-E5 | Balón: heatmap ROI-lite de 3 frames en gris | ML-14 ✅ · ML-36 ✅ · ML-37 · ML-38 · ML-39 · ML-40 · ML-41 · ML-42 |
 | ML-E6 | Export a Core ML y validación | ML-09 · ML-10 · ML-11 · ML-12 · ML-13 · ML-43 · ML-45 |
 | ML-E7 | Spikes de modelo en el iPhone 17 | SPK-50 · SPK-51 · SPK-52 · SPK-53 · SPK-54 · SPK-56 |
 | ML-E8 | Eventos aprendidos N3 y N4 | ML-47 · ML-48 · ML-49 · ML-50 · ML-51 · ML-52 · ML-53 · ML-54 · ML-55 · ML-57 |
@@ -36,6 +36,47 @@ aquí. Las que no llevan marca están ⬜.
 | T6 | Verificación numérica torch vs onnxruntime (< 1e-3) | ✅ **9,54e-06** |
 
 ---
+
+## 2026-10-05 · ML-36 — trayectorias del balón para etiquetar · ✅
+
+**Hecho**
+- `ftrain/ball/trajectory.py`, en dos fases:
+  1. en línea: un Kalman de velocidad constante por eje en píxeles nativos a 30 fps, una
+     puerta de 70 px alrededor de la predicción (70 px por fotograma transcurrido
+     mientras la pista tiene una sola detección y aún no sabe su velocidad) y
+     asociación voraz por distancia;
+  2. un repaso offline de cada pista en bruto contra todos los candidatos (`refine`): en
+     cada fotograma, el candidato a menos de 12 px de una cuadrática robusta de sus
+     vecinas (la de los dos lados, la de antes o la de después; la robusta quita la
+     peor mientras alguna se aleje más de 12 px), y la prolongación por los extremos.
+     Las pistas se rehacen de la más larga a la más corta y no reutilizan candidatos:
+     los trozos de la misma pelota se quedan vacíos.
+- Huecos de ≤8 fotogramas rellenos con una cuadrática de 3+3 vecinas (`fill_gaps`);
+  puntuación de pista (suma de confianzas) y banderas `long_gap`, `rival_nearby` (<120
+  px en el mismo fotograma), `low_confidence` (media <0,35) y `outside_mask`.
+- Constantes nuevas con su derivación en `ftrain/constants.py` (BALL_GATE_PX_PER_FRAME
+  y siguientes) y dos invariantes en test_constants.
+- Tests (13): la parábola con un 20 % de huecos y 2 fantasmas por fotograma en 10
+  semillas, un fantasma a destiempo, hueco largo, corte en dos pistas, rivales,
+  confianza y máscara, pistas cortas fuera, recta con dos puntos y un bote.
+
+**Medido** (parábola de 120 fotogramas, 20 % de huecos, 200 semillas):
+
+| Fantasmas/fotograma | Pistas de más | Fantasmas aceptados | Incompletas | Error interpolado máx |
+|---|---|---|---|---|
+| 1 | 0 | 0 | 0 | 6e-12 px |
+| 2 | 0 | 0 | 0 | 6e-12 px |
+| 4 | 0 | 2 | 0 | 1,8 px |
+
+Los 2 de 4/fotograma son fantasmas que caen por azar a menos de 12 px de la curva. Un bote
+con pérdida conserva sus 70 detecciones sin banderas. La primera versión (puerta que
+crecía con los huecos y sin repaso) daba 14 pistas en vez de 1 con 2 fantasmas por
+fotograma.
+
+**Fuera**: los umbrales (12 px, 120 px, 0,35) están puestos para los sintéticos; se
+ajustan con las primeras detecciones reales de la campaña (ML-37).
+
+**Siguiente paso**: ML-47 (el ADR del spotter), que no necesita datos.
 
 ## 2026-10-04 · SPK-52 (la pata de export) — paquete multifunción con pesos deduplicados · ✅
 

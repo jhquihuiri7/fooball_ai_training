@@ -114,3 +114,58 @@ fotograma que el emparejado no puede usar."""
 RECORDING_MIN_RIG_OVERLAP: Final = 0.95
 """Fracción mínima del partido en la que los rigMs de las dos cámaras se solapan:
 por debajo, una de las dos arrancó tarde o murió pronto."""
+
+# --------------------------------------------------------------------------- #
+# Trayectorias del balón para etiquetar (ML-36)
+# --------------------------------------------------------------------------- #
+
+BALL_GATE_PX_PER_FRAME: Final = 70.0
+"""Píxeles nativos 4K por fotograma a 30 fps: la puerta de asociación. Lo más que se aleja
+una detección de la predicción de su pista. Sale de los 58,5 px que recorre en un fotograma
+un balón a 25 m/s visto a 20 m, con un 20 % de margen. No crece con los huecos: la
+predicción de velocidad constante ya sigue al balón, y una puerta que crece deja entrar
+fantasmas (con 2 por fotograma, 14 pistas en vez de 1)."""
+
+BALL_OUTLIER_PX: Final = 12.0
+"""Píxeles nativos. Una detección que queda más lejos que esto de lo que extrapolan
+las de antes Y de lo que extrapolan las de después no es el balón: se quita y su
+fotograma pasa a hueco. Un bote cae cerca de las dos extrapolaciones; un fantasma, no."""
+
+BALL_TRACK_MAX_COAST_FRAMES: Final = 15
+"""Fotogramas (0,5 s a 30 fps) que una pista sigue viva sin detecciones. Más es un corte:
+lo que aparezca después empieza otra pista."""
+
+BALL_INTERP_MAX_GAP_FRAMES: Final = 8
+"""Fotogramas. Los huecos de hasta este largo se rellenan con la cuadrática; los más largos
+quedan sin rellenar y marcan la pista con `long_gap` para que la mire una persona."""
+
+BALL_INTERP_CONTEXT_POINTS: Final = 3
+"""Detecciones a cada lado de un hueco con las que se ajusta la cuadrática. Tres y tres
+sobran para una parábola y no arrastran el ajuste a un rebote lejano."""
+
+BALL_RIVAL_RADIUS_PX: Final = 120.0
+"""Píxeles nativos. Dos pistas que en el mismo fotograma pasan a menos de esto (dos
+desplazamientos de un balón rápido) son ambiguas: cuál es el balón lo decide una persona."""
+
+BALL_LOW_MEAN_SCORE: Final = 0.35
+"""Confianza media de las detecciones de una pista por debajo de la cual se marca
+`low_confidence`. Adimensional, 0-1."""
+
+BALL_TRACK_MIN_DETECTIONS: Final = 5
+"""Detecciones mínimas para que una pista salga. Las más cortas son fantasmas: un balón real
+se ve al menos un sexto de segundo seguido."""
+
+BALL_KF_ACCEL_STD_PX: Final = 8.0
+"""Ruido de proceso del Kalman de velocidad constante: desviación de la aceleración, en
+píxeles por fotograma al cuadrado (la gravedad vista de lejos, los efectos y los botes)."""
+
+BALL_KF_MEAS_STD_PX: Final = 2.0
+"""Ruido de medida del Kalman: desviación del centro detectado, en píxeles nativos."""
+
+BALL_REFINE_CONTEXT_POINTS: Final = 12
+"""Detecciones vecinas (las más cercanas en el tiempo) con las que el repaso offline
+ajusta la cuadrática robusta de cada fotograma: unos seis fotogramas a cada lado."""
+
+BALL_REFINE_PASSES: Final = 3
+"""Vueltas máximas del repaso offline de una pista; para antes si una vuelta no cambia
+nada."""

@@ -40,3 +40,14 @@ def test_la_entrada_de_jugadores_es_la_franja_4k_por_su_escala() -> None:
 def test_las_rois_del_balon_caben_enteras_en_la_rejilla_del_heatmap() -> None:
     assert c.BALL_ROI_SIDES_PX == (256,)
     assert all(lado % c.BALL_HEATMAP_STRIDE == 0 for lado in c.BALL_ROI_SIDES_PX)
+
+
+def test_la_puerta_del_balon_cubre_un_balon_rapido_cerca_con_margen() -> None:
+    # 58,5 px por fotograma: un balón a 25 m/s visto a 20 m (ML-36).
+    assert 58.5 < c.BALL_GATE_PX_PER_FRAME <= 58.5 * 1.25
+    assert c.BALL_OUTLIER_PX < c.BALL_GATE_PX_PER_FRAME
+
+
+def test_los_huecos_que_se_rellenan_caben_en_la_vida_de_una_pista() -> None:
+    assert c.BALL_INTERP_MAX_GAP_FRAMES < c.BALL_TRACK_MAX_COAST_FRAMES
+    assert c.BALL_REFINE_CONTEXT_POINTS >= 2 * (2 + 1)  # una parábola por cada lado
