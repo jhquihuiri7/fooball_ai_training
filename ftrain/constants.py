@@ -203,3 +203,62 @@ EVAL_CONFIDENCE: Final = 0.95
 
 EVAL_BOOTSTRAP_SEED: Final = 2026
 """Semilla del bootstrap: el informe tiene que ser reproducible."""
+
+# --------------------------------------------------------------------------- #
+# Eventos aprendidos N3 (ML-48, ADR 0004)
+# --------------------------------------------------------------------------- #
+
+PITCH_LENGTH_M: Final = 105.0
+"""Metros. El campo de referencia al que se normalizan las posiciones (el mismo valor por
+defecto que `PITCH_LENGTH_M` de la referencia). Origen en el centro, x a lo largo e y a lo
+ancho, como `PitchModel`."""
+
+PITCH_WIDTH_M: Final = 68.0
+"""Metros. El ancho del campo de referencia."""
+
+EVENTS_HZ: Final = 7.5
+"""Hz. La cadencia de la serie de N0 que ven N3 y N4 (ADR 0021 §1)."""
+
+SKILLCORNER_HZ: Final = 10.0
+"""Hz. La cadencia del tracking de SkillCorner."""
+
+N3_GRID_W: Final = 16
+"""Celdas de la rejilla de N3 a lo largo del campo (6,6 m cada una)."""
+
+N3_GRID_H: Final = 10
+"""Celdas de la rejilla de N3 a lo ancho del campo (6,8 m cada una)."""
+
+N3_CHANNELS: Final = ("players", "vx", "vy", "goalkeeper", "referee", "ball", "whistle")
+"""Canales de la rejilla de N3, en su orden: jugadores por celda, su velocidad media en
+m/s (x e y), porteros, árbitros, el balón (1 en su celda) y el silbato de N2 (1 en toda la
+rejilla mientras suena). En SkillCorner no hay árbitros ni audio: esos canales van a 0."""
+
+N3_CLASSES: Final = ("corner", "throw_in", "goal_kick", "kickoff", "free_kick", "goal")
+"""Clases de N3 en el orden de la salida; el índice 0 de la salida es «nada» y la clase k
+va en k + 1 (ADR 0004 §1)."""
+
+EVENT_LABEL_DILATION_STEPS: Final = 1
+"""Pasos a cada lado del instante de un evento que llevan su etiqueta (±133 ms a 7,5 Hz),
+como E2E-Spot (ADR 0004 §1)."""
+
+EVENT_DEDUP_S: Final = 2.0
+"""Segundos. Dos etiquetas de la misma clase más juntas que esto son el mismo evento (las
+filas de SkillCorner repiten la reanudación en varias posesiones)."""
+
+N3_WIDTH: Final = 48
+"""Canales internos de la TCN de N3: múltiplo de 16 (ANE_CHANNEL_QUANTUM) y lo justo para
+quedar por debajo de los 100.000 parámetros del ADR 0021 §1."""
+
+N3_TEMPORAL_KERNEL: Final = 3
+"""Ancho del kernel temporal de cada bloque de la TCN."""
+
+N3_DILATIONS: Final = (1, 2, 4, 8, 16, 32)
+"""Dilataciones de los bloques temporales: campo receptivo de 1 + 2·63 = 127 pasos, unos
+17 s a 7,5 Hz (el contexto de 16 s del ADR 0004)."""
+
+N3_MAX_PARAMS: Final = 100_000
+"""Tope de parámetros de N3 (ADR 0021 §1): corre en CPU en el VPS junto a N1."""
+
+N3_TOLERANCE_S: Final = 2.0
+"""Segundos. Tolerancia de un acierto de N3 contra la etiqueta (ADR 0004 §4), y la ventana
+de supresión de la decodificación por clase."""

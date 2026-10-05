@@ -1,7 +1,9 @@
 # ADR 0004 — N3 y N4: el spotter distribuible y su formato de eventos
 
 - **Fecha:** 2026-10-05
-- **Estado:** PROPUESTO (lo acepta el propietario; es la aceptación de ML-47)
+- **Estado:** PROPUESTO (lo acepta el propietario; es la aceptación de ML-47). El
+  propietario pidió el 2026-10-05 seguir sin esperar a su respuesta: ML-48 y lo que
+  sigue se construyen según este ADR, que queda pendiente de su revisión.
 - **Tarea:** ML-47 del plan de migración
   (`docs/plan-dos-moviles/entrenamiento.md` del repo de detección, rama `migracion/dos-moviles`)
 - **Parte de:** el ADR 0021 del repo de detección (aceptado el 2026-09-30), que ya fija los
@@ -29,8 +31,9 @@ decididas en ninguna parte:
 
 ### La entrada de N3
 
-- **Rejillas de ocupación del campo (elegida).** El campo de 105×68 m en celdas fijas. Un
-  canal cuenta los jugadores de cada celda y otro lleva el balón. Las rejillas no dependen
+- **Rejillas de ocupación del campo (elegida).** El campo de 105×68 m en celdas fijas, con
+  canales por celda: los jugadores que hay, su velocidad, los porteros, los árbitros, el
+  balón y el silbato. Las rejillas no dependen
   del número de jugadores ni de su orden, ni de saber de qué equipo es cada uno: N0 v1 no
   trae equipo. SkillCorner opendata se convierte a esto mismo (ML-48), así que el preentreno
   y los datos propios hablan el mismo idioma.
@@ -62,7 +65,7 @@ decididas en ninguna parte:
 | Qué | Valor |
 |---|---|
 | Entrada | La serie de N0 a 7,5 Hz: `fused` (jugadores en metros) y `ball` |
-| Representación | Rejilla de 12×8 celdas (8,75 × 8,5 m), 2 canales: jugadores por celda y el balón (1 en su celda, 0 si no hay) |
+| Representación | Rejilla de 16×10 celdas (6,6 × 6,8 m), como pide ML-48, con 7 canales (`N3_CHANNELS`): jugadores por celda, su velocidad media en x e y (m/s), porteros, árbitros, el balón (1 en su celda) y el silbato de N2. En SkillCorner no hay árbitros ni audio: esos canales van a 0 |
 | Ventana | Causal, 16 s (120 pasos) de contexto efectivo |
 | Modelo | TCN causal de convoluciones dilatadas, ≤100.000 parámetros (ADR 0021 §1) |
 | Clases | corner, throw_in, goal_kick, kickoff, free_kick, goal, más «nada» |
@@ -150,7 +153,7 @@ decididas en ninguna parte:
 | Punto | Recomendación | Lo cierra |
 |---|---|---|
 | La licencia de los datos de SkillCorner | Como el ADR 0021: si no se aclara, N3 se entrena solo con datos propios y el preentreno queda para medir | ML-48, propietario |
-| 12×8 celdas y 16 s de contexto | Son el punto de partida; se barren en ML-50 con los datos propios delante | ML-50 |
+| 16×10 celdas y 16 s de contexto | Son el punto de partida; se barren en ML-50 con los datos propios delante | ML-50 |
 | Los umbrales por clase | Del punto de operación que elija el propietario sobre la curva P/R | ML-50, ML-54 |
 
 ## Aceptación
