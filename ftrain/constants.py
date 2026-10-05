@@ -169,3 +169,8 @@ ajusta la cuadrática robusta de cada fotograma: unos seis fotogramas a cada lad
 BALL_REFINE_PASSES: Final = 3
 """Vueltas máximas del repaso offline de una pista; para antes si una vuelta no cambia
 nada."""
+
+LABEL_TILE_MIN_VISIBLE: Final = 0.5
+"""Fracción del área de una caja que tiene que verse en una tesela para entrar en el COCO
+de RF-DETR (ML-22). Menos es una caja cortada que enseña al maestro a detectar medio
+jugador; el solape de las teselas (ML-24) garantiza que la entera está en otra."""

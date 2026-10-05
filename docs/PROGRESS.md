@@ -14,7 +14,7 @@ aquí. Las que no llevan marca están ⬜.
 | EPIC | Qué | Tareas |
 |---|---|---|
 | ML-E1 | Infraestructura y contrato del repo | ML-01 ✅ · ML-02 ✅ · ML-03 ✅ · ML-04 🚧 · ML-05 ✅ |
-| ML-E2 | Campaña de datos: grabación, ingesta, extracción y anotación | ML-06 ✅ · ML-07 ✅ · ML-08 · ML-17 · ML-18 · ML-19 ✅ · ML-20 · ML-21 ✅ · ML-22 · ML-23 · ML-58 |
+| ML-E2 | Campaña de datos: grabación, ingesta, extracción y anotación | ML-06 ✅ · ML-07 ✅ · ML-08 · ML-17 · ML-18 · ML-19 ✅ · ML-20 · ML-21 ✅ · ML-22 ✅ · ML-23 · ML-58 |
 | ML-E3 | Autoanotación con maestro y players-v1 | ML-24 · ML-25 · ML-26 · ML-27 · ML-28 · ML-29 · ML-30 · ML-31 |
 | ML-E4 | Jugadores: D-FINE-N a 1920×576 | ML-15 ✅ · ML-16 · ML-32 · ML-33 · ML-34 · ML-35 |
 | ML-E5 | Balón: heatmap ROI-lite de 3 frames en gris | ML-14 ✅ · ML-36 ✅ · ML-37 · ML-38 · ML-39 · ML-40 · ML-41 · ML-42 |
@@ -36,6 +36,28 @@ aquí. Las que no llevan marca están ⬜.
 | T6 | Verificación numérica torch vs onnxruntime (< 1e-3) | ✅ **9,54e-06** |
 
 ---
+
+## 2026-10-05 · ML-22 — formato canónico de etiquetas y conversores · ✅
+
+**Hecho**
+- `ftrain/labels.py`, con `FrameRef`, `Box` y `LabelSet`:
+  - **COCO extendido nativo**, de ida y vuelta. Clases `MASTER_CLASSES` con ids 0..4.
+    `occluded`, `truncated` y `blurred` son obligatorios (sin ellos, `LabelsError`);
+    cada caja lleva su fuente (human/master/auto) y su confianza, y cada imagen su
+    `unusable` y su sha256.
+  - **CVAT XML 1.1**, de imágenes y de pistas de vídeo, de ida y vuelta. Las pistas se
+    interpolan entre fotogramas clave, y lo interpolado sale con fuente `auto`.
+  - **DEIM:** solo jugadores, ids 0..2 en `PLAYER_CLASSES`, en el lienzo de 1920x576 a
+    través del `map_box` de `SideBand` (ML-19). Se quedan fuera los frames inservibles,
+    y las cajas que no caen en el lienzo se cuentan en `skipped`.
+  - **RF-DETR por teselas nativas (ML-24):** las cajas se recortan a la tesela si se ve
+    al menos `LABEL_TILE_MIN_VISIBLE` (50 %) de su área.
+- El balón es una caja con `center` y `diameter`, no un punto. La tarjeta habla de un
+  `BallPoint`, pero manda el ADR 0003 §3.
+- Tests (8): COCO→CVAT→COCO conserva cajas (<0,01 px), atributos y orden de clases;
+  rechazos; balón; pistas con interpolación; DEIM; RF-DETR por teselas.
+
+**Siguiente paso**: ML-26 (evaluación por bandas).
 
 ## 2026-10-05 · ML-47 — ADR 0004: N3 y N4 distribuibles y su formato · 🚧 PROPUESTO
 
