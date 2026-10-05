@@ -15,7 +15,7 @@ aquí. Las que no llevan marca están ⬜.
 |---|---|---|
 | ML-E1 | Infraestructura y contrato del repo | ML-01 ✅ · ML-02 ✅ · ML-03 ✅ · ML-04 🚧 · ML-05 ✅ |
 | ML-E2 | Campaña de datos: grabación, ingesta, extracción y anotación | ML-06 ✅ · ML-07 ✅ · ML-08 · ML-17 · ML-18 · ML-19 ✅ · ML-20 · ML-21 ✅ · ML-22 ✅ · ML-23 · ML-58 |
-| ML-E3 | Autoanotación con maestro y players-v1 | ML-24 · ML-25 · ML-26 · ML-27 · ML-28 · ML-29 · ML-30 · ML-31 |
+| ML-E3 | Autoanotación con maestro y players-v1 | ML-24 · ML-25 · ML-26 ✅ · ML-27 · ML-28 · ML-29 · ML-30 · ML-31 |
 | ML-E4 | Jugadores: D-FINE-N a 1920×576 | ML-15 ✅ · ML-16 · ML-32 · ML-33 · ML-34 · ML-35 |
 | ML-E5 | Balón: heatmap ROI-lite de 3 frames en gris | ML-14 ✅ · ML-36 ✅ · ML-37 · ML-38 · ML-39 · ML-40 · ML-41 · ML-42 |
 | ML-E6 | Export a Core ML y validación | ML-09 · ML-10 · ML-11 · ML-12 · ML-13 · ML-43 · ML-45 |
@@ -36,6 +36,32 @@ aquí. Las que no llevan marca están ⬜.
 | T6 | Verificación numérica torch vs onnxruntime (< 1e-3) | ✅ **9,54e-06** |
 
 ---
+
+## 2026-10-05 · ML-26 — evaluación por bandas (M4, R-P7-1) y tamaño del balón (M5) · ✅ el código, ⬜ las cifras
+
+**Hecho**
+- `ftrain/eval/detection.py`:
+  - **emparejado** de la más segura a la menos, por clase y sin clase: IoU ≥0,5, y por
+    distancia de centros (≤4 px) para las cajas de verdad de menos de 8 px de ancho;
+  - **métricas por grupo** (banda por defecto; también luz y partido): recall, precisión
+    a 0,5 y AP50 con interpolación de todos los puntos;
+  - **intervalos del recall** por bootstrap sobre PARTIDOS (1000 remuestreos, semilla
+    fija).
+- `tools/eval_players.py`: verdad en COCO canónico (ML-22) con `match` y `light` por
+  imagen y `band` por caja; predicciones en .npz de torch o de Core ML. Escribe
+  `<out>.json` y una tabla Markdown por banda con el IC.
+- `tools/ball_size_table.py`: el diámetro del balón (la media del ancho y el alto de su
+  caja) en p5/p50/p95 por banda.
+- Constantes de evaluación con su motivo en `ftrain/constants.py`.
+- Tests (9): recall y precisión conocidos por banda, luz y partido; cajas pequeñas por
+  centro; sin clase; una caja de verdad una sola vez; AP de una lista conocida; bootstrap
+  determinista que contiene el recall; las dos herramientas de punta a punta.
+
+**Fuera**
+- La entrada directa de un .onnx por onnxruntime en `eval_players`: necesita el
+  preproceso de la franja en este repo.
+- Las cifras de M4 y M5, y borrar sus filas de MEDICIONES: esperan a la campaña anotada
+  (ML-17 y ML-28).
 
 ## 2026-10-05 · ML-22 — formato canónico de etiquetas y conversores · ✅
 

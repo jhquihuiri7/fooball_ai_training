@@ -174,3 +174,32 @@ LABEL_TILE_MIN_VISIBLE: Final = 0.5
 """Fracción del área de una caja que tiene que verse en una tesela para entrar en el COCO
 de RF-DETR (ML-22). Menos es una caja cortada que enseña al maestro a detectar medio
 jugador; el solape de las teselas (ML-24) garantiza que la entera está en otra."""
+
+# --------------------------------------------------------------------------- #
+# Evaluación por bandas (ML-26)
+# --------------------------------------------------------------------------- #
+
+EVAL_IOU_MATCH: Final = 0.5
+"""IoU mínimo para que una predicción empareje con una caja de verdad (AP50)."""
+
+EVAL_SMALL_BOX_PX: Final = 8.0
+"""Píxeles de ancho por debajo de los cuales una caja de verdad se empareja por
+distancia de centros y no por IoU: a 8 px, un píxel de error ya hunde el IoU por
+debajo de 0,5 aunque la detección sea buena (el balón lejano)."""
+
+EVAL_SMALL_CENTER_PX: Final = 4.0
+"""Distancia máxima entre centros, en píxeles, para emparejar una caja pequeña: medio
+ancho de la mayor de ellas."""
+
+EVAL_SCORE_THRESHOLD: Final = 0.5
+"""Confianza a partir de la cual una predicción cuenta para el recall y la precisión.
+El AP50 barre todas."""
+
+EVAL_BOOTSTRAP_ROUNDS: Final = 1000
+"""Remuestreos por partido para los intervalos de confianza."""
+
+EVAL_CONFIDENCE: Final = 0.95
+"""Nivel de los intervalos por bootstrap: percentiles 2,5 y 97,5."""
+
+EVAL_BOOTSTRAP_SEED: Final = 2026
+"""Semilla del bootstrap: el informe tiene que ser reproducible."""
