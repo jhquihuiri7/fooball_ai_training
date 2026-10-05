@@ -37,6 +37,42 @@ aquí. Las que no llevan marca están ⬜.
 
 ---
 
+## 2026-10-05 · Plan B de jugadores (ADR 0020, para REF-33): CenterNet-MNv4 y YOLOX-Tiny medidos en el iPhone 17
+
+SPK-51 dejó a D-FINE-N fuera: 0 % de ANE, 150 ms en GPU. Así que se construyen los dos
+candidatos del plan B con pesos sembrados y se miden en el mismo banco (SPK-50), como
+pide el ADR 0020 («dos exports con pesos sembrados, una tarde»).
+
+**Hecho**
+- `ftrain/players/plan_b.py`:
+  - **CenterNet-MNv4:** MobileNetV4-Conv-S de timm, cuello FPN ligero hasta paso 4 (64
+    canales), y heatmap de 3 clases, tamaño y desplazamiento; 1,31 M parámetros;
+  - **YOLOX-Tiny:** reimplementado (Focus, CSPDarknet, SPP, PAFPN y cabeza desacoplada),
+    sin NMS en el grafo; 5,03 M parámetros;
+  - builders deterministas para `export_coreml.py`.
+- Specs en `configs/export/players-{centernet-mnv4,yolox-tiny}.yaml` (franja de
+  1920x576, RGB).
+- Tests (3): formas, canales de CenterNet múltiplos de 16 y determinismo.
+
+**Medido**
+- **ane_lint**: CenterNet tiene 474 ops y 7 avisos (la salida de 3 clases y 6 ops en
+  fp32). YOLOX tiene 861 ops y 33 capas con canales que no son múltiplos de 16 (24, 12,
+  4, 3, 1), más 4 en fp32.
+- **iPhone 17** (iPhone18,3; 500 predicciones tras calentar; CPU_AND_NE; térmica fair):
+
+  | Modelo | Coste en el ANE | p50 | p99 | Compilación | Carga |
+  |---|---|---|---|---|---|
+  | CenterNet-MNv4 | 83,1 % | **8 ms** | 8 ms | 66 ms | 0,48 s |
+  | YOLOX-Tiny | 67,9 % | 33 ms | 50 ms | 77 ms | 0,85 s |
+  | D-FINE-N (SPK-51) | 0 % | 150 ms (GPU) | — | 155 ms | 3,5 s |
+
+  Informe en `bench/model-bench-1791234120.json` del repo de la app.
+
+**Recomendación para REF-33**: CenterNet-MNv4. Cabe 16 veces en el ciclo de 133 ms y en el
+ANE, sin quitarle GPU al render. YOLOX-Tiny también cabe, pero cuatro veces más lento y con
+un tercio fuera del ANE. La decisión es del propietario (REF-33): con ella se replantean
+ML-32 a ML-35 sobre CenterNet.
+
 ## 2026-10-05 · ML-51 — el spotter N4 en streaming (modo clip y modo paso) · ✅
 
 **Hecho**

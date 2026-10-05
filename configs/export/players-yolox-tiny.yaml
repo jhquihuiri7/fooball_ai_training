@@ -1,0 +1,8 @@
+# El candidato YOLOX-Tiny del plan B de jugadores (ADR 0020), a la franja de 1920x576. Sin NMS.
+model_name: players-yolox-tiny
+inputs:
+  - name: image
+    kind: image
+    shape: [1, 3, 576, 1920]
+    color: RGB
+outputs: [scores, boxes, objectness]

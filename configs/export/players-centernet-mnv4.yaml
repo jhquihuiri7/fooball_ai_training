@@ -1,0 +1,8 @@
+# El candidato CenterNet-MNv4 del plan B de jugadores (ADR 0020), a la franja de 1920x576.
+model_name: players-centernet-mnv4
+inputs:
+  - name: image
+    kind: image
+    shape: [1, 3, 576, 1920]
+    color: RGB
+outputs: [heatmap, size, offset]
