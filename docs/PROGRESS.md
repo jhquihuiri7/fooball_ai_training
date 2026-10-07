@@ -37,6 +37,101 @@ aquí. Las que no llevan marca están ⬜.
 
 ---
 
+## 2026-10-07 · Plan B de jugadores: preentreno de CenterNet-MNv4 con COCO person (ADR 0020, para REF-33) · 🚧 en pausa en el paso 527, reanudable
+
+Para medir mañana en el iPhone un CenterNet-MNv4 con pesos reales, no los sembrados. Sin
+datos propios (ML-17) ni bucket (ML-04), el preentreno se hace en este Mac con datos
+abiertos. Commit del código: `0837cdd`.
+
+**Decidido** (pendiente de revisión del propietario)
+- **Datos: COCO 2017, solo `person`.** Anotaciones CC BY 4.0; cada imagen trae su licencia
+  Flickr, y el 69 % de las 64.115 imágenes con personas son NC. El ADR 0002 acepta el
+  preentreno COCO como riesgo residual: es el mismo de `dfine_n_coco.pth`. El índice guarda
+  la licencia de cada imagen, y `--licencias 4,5,6,7,8` entrena solo con las 19.746
+  comerciales si el propietario lo prefiere.
+- **Tronco:** MobileNetV4-Conv-S de ImageNet (`timm/mobilenetv4_conv_small.e2400_r224_in1k`),
+  Apache-2.0 según su ficha, en el commit `331fb80` y con el sha256 fijado. Con la regla de
+  ML-52, la licencia del checkpoint se ha mirado antes de usarlo.
+- **Clases:** las personas van a `player`. `goalkeeper` y `referee` se entrenan como
+  negativos puros, para que en el iPhone no den cajas al azar. Separarlas es del afinado
+  con datos propios.
+- **Contrato de las salidas** (lo tendrá que decodificar la app): heatmap con sigmoid a paso
+  4; `size` = ancho y alto **en celdas** (×4 = px de entrada); `offset` = centro dentro de
+  la celda; picos por máximo local de 3×3, sin NMS. Está en `ftrain/players/centernet_data.py`.
+  Si REF-33 elige CenterNet, se fija en un ADR del repo de detección.
+- **Resolución:** se entrena con mosaicos en fila de 384×1152 (las imágenes de COCO, una al
+  lado de otra y a escala al azar, con un alto del 25 % al 150 % del lienzo). Así las
+  personas salen a tamaños de jugador lejano y cercano. Se evalúa a 576×1920, la franja.
+  La red es convolucional entera: lo que cuenta es el tamaño de las personas en píxeles,
+  no el del lienzo. El throughput en Mpx/s es el mismo a 576×1920, pero con lotes de 16 en
+  vez de 8.
+- **Horas:** `--hours 12.5`, con el lr en coseno por **tiempo**: acaba a su hora aunque el
+  Mac vaya más lento de lo medido. El presupuesto cuenta las horas de todas las tandas.
+- **En pausa.** Arrancó el 2026-10-07 a las 16:09 y se paró a las 16:25, porque el
+  propietario necesitaba el Mac. Se paró justo después del primer `last.pt`: paso 527,
+  0,25 h gastadas y todavía sin evaluación ni `best.pt`. La bajada de COCO también se
+  paró, con 39.885 de 64.115 imágenes en disco.
+
+**Medido** (MacBook Air M4 sin ventilador, 16 GB, MPS, fp32)
+- Throughput en frío: unos 10,5 Mpx/s a cualquier forma (b16 384×1152: 676 ms por paso;
+  b8 576×1920: 764 ms). channels_last y autocast fp16 van 3-5 veces **más lentos** en MPS.
+  En caliente, y compartiendo la máquina con compilaciones de Xcode, el Air baja a 6,6-10,5
+  img/s por estrangulamiento térmico.
+- La bajada va a ~3 MB/s (unas 160 KB por imagen, 10 GB en total). El entreno arrancó con
+  21.453 imágenes en disco y cada época vuelve a mirar cuántas hay.
+- **Primera pérdida:** 169,4 en el paso 1 (focal 166,9, size 13,9, offset 1,15); 3,68 en el
+  paso 50, 2,36 en el 350 (focal 1,81) y 2,65 en el 500, con el lr todavía subiendo. Humo
+  previo de 120 pasos: AP de persona 0,010 (AP50 0,042) en 100 imágenes.
+
+**Reanudar** (el mismo comando del arranque: si encuentra `last.pt`, sigue desde él)
+```bash
+# 1. Terminar la bajada (lo que ya está en disco no se repite):
+uv run python tools/fetch_coco_person.py
+# 2. El entreno corre desde un worktree fijado en 0837cdd (runs/centernet-coco/code),
+#    separado del árbol de trabajo: así nadie le cambia el código mientras corre.
+cd runs/centernet-coco/code
+nohup perl -e 'use POSIX qw(setsid); setsid(); exec @ARGV' caffeinate -ims \
+  ../../../.venv/bin/python tools/train_centernet.py --data ../../../datasets/coco2017 \
+  --out .. --hours 12.5 --workers 4 >> ../train.log 2>&1 < /dev/null &
+```
+Si el worktree se ha borrado: `git worktree add --detach runs/centernet-coco/code 0837cdd`.
+Pararlo limpio es matar el proceso justo después de un `last.pt`, que se escribe de forma
+atómica cada 15 min. Se pierde como mucho lo hecho desde el último.
+- Log: `runs/centernet-coco/train.log`, con la pérdida cada 50 pasos y el AP cada 2000.
+- AP por evaluación: `runs/centernet-coco/metrics.jsonl`.
+- `runs/centernet-coco/last.pt` se guarda cada 15 min. Si se corta, el mismo comando
+  reanuda y descuenta las horas ya gastadas.
+- `runs/centernet-coco/best.pt` es el state_dict de la EMA con mejor AP de persona: lo carga
+  `ftrain.players.plan_b:build_centernet` tal cual.
+- El Air tiene que seguir enchufado y con la tapa abierta: `caffeinate` evita el reposo por
+  inactividad, pero no el de cerrar la tapa.
+
+**Al terminar: exportar el mejor checkpoint y medirlo**
+```bash
+uv sync --group train --group apple
+uv run python tools/export_coreml.py \
+  --spec configs/export/players-centernet-mnv4.yaml \
+  --builder ftrain.players.plan_b:build_centernet \
+  --checkpoint runs/centernet-coco/best.pt \
+  --classes goalkeeper,player,referee \
+  --dataset-version coco2017-person-0837cdd \
+  --out runs/centernet-coco/export
+cd runs/centernet-coco/export && unzip -o players-centernet-mnv4.mlpackage.zip -d pkg && cd -
+uv run python tools/ane_lint.py runs/centernet-coco/export/pkg/players-centernet-mnv4.mlpackage
+# el .mlpackage descomprimido es el que copia el banco del iPhone (SPK-50)
+```
+El grafo es el mismo que el sembrado, así que la latencia tiene que seguir en unos 8 ms. Lo
+nuevo es que detecta, y la app necesita el decodificador del contrato de arriba.
+
+**Fuera**
+- La puerta fp16 (ML-11) y los dorados de este checkpoint.
+- La paridad: es un preentreno para medir, no un artefacto que se entregue.
+- Afinar con la franja propia, cuando existan ML-17 y ML-28.
+
+**Siguiente paso**: reanudar cuando el Mac esté libre (una noche entera), leer
+`metrics.jsonl`, exportar `best.pt` y medirlo en el iPhone 17.
+Con la cifra, que el propietario decida REF-33.
+
 ## 2026-10-05 · Plan B de jugadores (ADR 0020, para REF-33): CenterNet-MNv4 y YOLOX-Tiny medidos en el iPhone 17
 
 SPK-51 dejó a D-FINE-N fuera: 0 % de ANE, 150 ms en GPU. Así que se construyen los dos
