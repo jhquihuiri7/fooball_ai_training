@@ -10,13 +10,15 @@
 Deja `dist/<model_name>.mlpackage.zip` (zip determinista: el sha256 es estable entre
 exports idénticos) e imprime el sha para la ficha v2 del registro. `--builder` es
 `modulo:funcion`; la función recibe la ruta del checkpoint (o None) y devuelve el
-nn.Module listo para exportar.
+nn.Module listo para exportar. Con `--keep-package` deja además el `.mlpackage` sin
+zipear al lado, que es lo que copia el banco del iPhone (SPK-53).
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -56,6 +58,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--dataset-version", default="sin-dataset")
     parser.add_argument("--region", default="full_frame")
     parser.add_argument("--frames", type=int, default=1)
+    parser.add_argument(
+        "--keep-package", action="store_true", help="deja también el .mlpackage sin zipear"
+    )
     opciones = parser.parse_args(argv)
 
     spec = load_spec(opciones.spec)
@@ -82,8 +87,14 @@ def main(argv: list[str] | None = None) -> int:
         normalize_manifest(paquete)
         destino = opciones.out / f"{spec.model_name}.mlpackage.zip"
         sha = deterministic_zip(paquete, destino)
+        informe = {"package": str(destino), "sha256": sha}
+        if opciones.keep_package:
+            suelto = opciones.out / paquete.name
+            shutil.rmtree(suelto, ignore_errors=True)
+            shutil.copytree(paquete, suelto)
+            informe["mlpackage"] = str(suelto)
 
-    print(json.dumps({"package": str(destino), "sha256": sha}, indent=2))
+    print(json.dumps(informe, indent=2))
     return 0
 
 

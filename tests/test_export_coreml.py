@@ -128,14 +128,15 @@ def test_contenido_distinto_da_sha_distinto(tmp_path):
 # --------------------------------------------------------------------------- #
 # La conversión de verdad (donde hay torch y coremltools)
 # --------------------------------------------------------------------------- #
-def test_states_y_functions_avisan_que_no_estan():
-    pytest.importorskip("torch", reason="el grupo `train` no está instalado")
+def test_un_estado_que_no_es_buffer_y_las_functions_se_rechazan():
+    torch = pytest.importorskip("torch", reason="el grupo `train` no está instalado")
     pytest.importorskip("coremltools", reason="sin ruedas de coremltools aquí")
     from ftrain.export.coreml import convert  # noqa: PLC0415
 
+    # `states` existe desde SPK-53: cada nombre tiene que ser un buffer del módulo.
     spec = ExportSpec.from_dict({**SPEC, "states": ["h"]})
-    with pytest.raises(ExportError, match="states"):
-        convert(object(), spec, {})
+    with pytest.raises(ExportError, match="buffer"):
+        convert(torch.nn.Conv2d(3, 1, 1), spec, {})
     spec = ExportSpec.from_dict({**SPEC, "functions": {"global": "x"}})
     with pytest.raises(ExportError, match="export_multifunction"):
         convert(object(), spec, {})

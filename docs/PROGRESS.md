@@ -19,7 +19,7 @@ aquí. Las que no llevan marca están ⬜.
 | ML-E4 | Jugadores: D-FINE-N a 1920×576 | ML-15 ✅ · ML-16 · ML-32 · ML-33 · ML-34 · ML-35 |
 | ML-E5 | Balón: heatmap ROI-lite de 3 frames en gris | ML-14 ✅ · ML-36 ✅ · ML-37 · ML-38 · ML-39 · ML-40 · ML-41 · ML-42 |
 | ML-E6 | Export a Core ML y validación | ML-09 · ML-10 · ML-11 · ML-12 · ML-13 · ML-43 · ML-45 |
-| ML-E7 | Spikes de modelo en el iPhone 17 | SPK-50 · SPK-51 · SPK-52 · SPK-53 · SPK-54 · SPK-56 |
+| ML-E7 | Spikes de modelo en el iPhone 17 | SPK-50 · SPK-51 · SPK-52 · SPK-53 🚧 · SPK-54 · SPK-56 |
 | ML-E8 | Eventos aprendidos N3 y N4 | ML-47 🚧 · ML-48 ✅ · ML-49 · ML-50 🚧 · ML-51 ✅ · ML-52 · ML-53 · ML-54 · ML-55 · ML-57 |
 | ML-E9 | Retiradas | ML-46 ✅ (en el repo de detección) |
 
@@ -36,6 +36,69 @@ aquí. Las que no llevan marca están ⬜.
 | T6 | Verificación numérica torch vs onnxruntime (< 1e-3) | ✅ **9,54e-06** |
 
 ---
+
+## 2026-10-07 · SPK-53 (la pata de export) — N4 en modo paso con MLState y con E/S explícita · 🚧 falta el iPhone
+
+Se exporta el modo paso de ML-51 (pesos sembrados) de las dos maneras de la tarjeta, con
+su secuencia dorada de torch, y se comprueba en el Mac. La medida que decide es la del
+iPhone 17, con el banco de la app (`tools/spk53_bench.sh` del repo de la app).
+
+**Hecho**
+- `ftrain/events/spotter_export.py`: `N4StepStateful` (el estado en buffers → StateType)
+  y `N4StepExplicit` (`tsm0..tsm2, h` entran y salen como `<nombre>_out`), las dos sobre
+  el mismo `step`; builders sembrados; `golden_sequence` (torch fp32 desde el estado cero,
+  con el fotograma redondeado a fp16 como lo entrega la app); `run_coreml_sequence` (Mac);
+  `TinyStepper`, el gemelo diminuto para los fixtures de Swift.
+- `ftrain/export/coreml.py`: `states` implementado (cada nombre es un buffer; jit.trace
+  directo y sin cargar el modelo al convertir) y `fp16_outputs` nuevo en el spec.
+- Specs `configs/export/n4-{step,tiny}-{mlstate,explicit}.yaml`; `--keep-package` en
+  `tools/export_coreml.py`; `tools/golden_sequence.py` (bundle de ML-12 con `frame_NNN`
+  en uint8 planar, `logits_NNN` y `h_NNN`, más `sequence.json`, y la puerta en Core ML).
+- Constantes `N4_STATE_ROW`, `N4_STEP_COREML_ATOL`, `N4_GOLDEN_STEPS` (entraron en
+  `0837cdd`, el commit del preentreno de CenterNet, que se llevó el fichero entero).
+- Tests (12 en `tests/test_events_spotter_export.py`, más el de `states` en
+  `test_export_coreml.py`): las dos variantes son el mismo paso (Δ<1e-5) y el reinicio
+  vuelve a cero; los YAML casan con el módulo; el bundle lo lee el formato de ML-12; en
+  macOS, las dos variantes del gemelo recorren la secuencia en Core ML.
+
+**Medido en el Mac (M4, macOS 26.3)**
+- **MLState con el estado en su forma nativa no carga en el ANE**: «Failed to build the
+  model execution plan … error code: -14» (en la CPU y la GPU sí). Con el estado
+  empaquetado en filas de 32 elementos sí carga. De ahí `N4_STATE_ROW`, aplicado igual a
+  las dos variantes para que solo cambie el mecanismo. Los programas MIL mínimos con
+  estado hechos a mano daban segfault en el ANE; el patrón de torch (buffer + `x[:] =`)
+  no.
+- **El fotograma como TensorType fp16, no ImageType**: con ImageType, el cast y la escala
+  1/255 se quedan en la CPU y son el 18 % del coste (82 % ANE). Con el tensor, **100 %
+  del coste en el ANE en las dos variantes**. La app escala el byte al pasar a fp16
+  planar, como con el balón.
+- Secuencia dorada (100 pasos, `cpu_and_ne`): peor delta logits 1,6e-3 y h 1,4e-2, igual
+  en las dos; en `cpu_only`, 6,8e-3 y 4,8e-2. Tolerancias fijadas en 2e-2 (logits) y 5e-2
+  (h); una fuga de estado mueve los logits 0,1-0,3 y h hasta 0,99 en casi todos los pasos.
+- Latencia por paso en el M4 (binario aparte, 1000 pasos): E/S explícita con
+  outputBackings sobre IOSurface **0,9-1,2 ms** p50; MLState **1,1 ms** p50. En el carril
+  de `swift test` (debug, Mac cargado con el preentreno de CenterNet) salió 12 ms la
+  explícita y 2 ms MLState: no vale como medida, solo prueba que el arnés corre.
+
+**Decidido** (pendiente de revisión del propietario): estado empaquetado en filas de 32;
+fotograma TensorType fp16 en [0,1]; tolerancias 2e-2/5e-2 por paso.
+
+**Pendiente**: la pasada en el iPhone 17 (no se tocó: estaba ocupado). Con ella se elige
+una de las dos y se cierra SPK-53. El pytest entero del repo no se corrió (pausa pedida
+para liberar el Mac); sí ruff entero y los tests tocados (73 en verde).
+
+**Para rehacer los artefactos** (van a `runs/spk53/`, que git ignora):
+
+```bash
+uv run python tools/export_coreml.py --spec configs/export/n4-step-mlstate.yaml \
+    --builder ftrain.events.spotter_export:build_step_stateful --out runs/spk53 --keep-package
+uv run python tools/export_coreml.py --spec configs/export/n4-step-explicit.yaml \
+    --builder ftrain.events.spotter_export:build_step_explicit --out runs/spk53 --keep-package
+uv run python tools/golden_sequence.py --spec configs/export/n4-step-mlstate.yaml \
+    --builder ftrain.events.spotter_export:build_spotter --name n4-step --version v1 \
+    --out runs/spk53/golden \
+    --package runs/spk53/n4-step-mlstate.mlpackage --package runs/spk53/n4-step-explicit.mlpackage
+```
 
 ## 2026-10-07 · Plan B de jugadores: preentreno de CenterNet-MNv4 con COCO person (ADR 0020, para REF-33) · 🚧 en pausa en el paso 527, reanudable
 

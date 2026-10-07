@@ -1,0 +1,10 @@
+# El gemelo diminuto de n4-step-mlstate (SPK-53): los fixtures de los tests de Swift.
+# Builder: ftrain.events.spotter_export:build_tiny_stateful
+model_name: n4-tiny-mlstate
+inputs:
+  - {name: frame, kind: tensor, shape: [1, 3, 16, 128]}
+outputs: [logits]
+states: [tsm0, h]
+metadata:
+  state: mlstate
+  state_row: "32"

@@ -1,0 +1,18 @@
+# N4 en modo paso con el estado como entradas y salidas (SPK-53): la app recicla
+# `<nombre>_out` en la entrada `<nombre>` del paso siguiente con outputBackings.
+# Mismas formas empaquetadas que la variante MLState (N4_STATE_ROW).
+# Builder: ftrain.events.spotter_export:build_step_explicit
+model_name: n4-step-explicit
+inputs:
+  - name: frame
+    kind: tensor            # fp16 planar en [0,1]: la app escala el byte (FRAME_SCALE)
+    shape: [1, 3, 256, 448]
+  - {name: tsm0, kind: tensor, shape: [1, 4, 224, 32]}
+  - {name: tsm1, kind: tensor, shape: [1, 8, 56, 32]}
+  - {name: tsm2, kind: tensor, shape: [1, 12, 14, 32]}
+  - {name: h, kind: tensor, shape: [1, 1, 2, 32]}
+outputs: [logits, tsm0_out, tsm1_out, tsm2_out, h_out]
+fp16_outputs: [tsm0_out, tsm1_out, tsm2_out, h_out]
+metadata:
+  state: explicit
+  state_row: "32"

@@ -1,0 +1,13 @@
+# N4 en modo paso con el estado en MLState (SPK-53): solo entra el fotograma; el estado
+# (los tres TSM y la GRU) vive en el modelo, empaquetado en filas de 32 (N4_STATE_ROW).
+# Builder: ftrain.events.spotter_export:build_step_stateful
+model_name: n4-step-mlstate
+inputs:
+  - name: frame
+    kind: tensor            # fp16 planar en [0,1]: la app escala el byte (FRAME_SCALE)
+    shape: [1, 3, 256, 448]
+outputs: [logits]
+states: [tsm0, tsm1, tsm2, h]
+metadata:
+  state: mlstate
+  state_row: "32"

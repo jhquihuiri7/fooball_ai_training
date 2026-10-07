@@ -110,6 +110,7 @@ class ExportSpec:
     metadata: dict[str, str] = field(default_factory=dict)
     states: tuple[str, ...] = ()
     functions: dict[str, str] = field(default_factory=dict)
+    fp16_outputs: tuple[str, ...] = ()
 
     @classmethod
     def from_dict(cls, data: object) -> ExportSpec:
@@ -145,6 +146,10 @@ class ExportSpec:
         if not isinstance(funciones, dict):
             msg = f"{where}: `functions` tiene que ser un mapa nombre→builder"
             raise ExportError(msg)
+        en_fp16 = data.get("fp16_outputs", [])
+        if not isinstance(en_fp16, list) or any(s not in salidas for s in en_fp16):
+            msg = f"{where}: `fp16_outputs` tiene que ser una lista de salidas del contrato"
+            raise ExportError(msg)
         return cls(
             model_name=nombre,
             inputs=tuple(
@@ -155,6 +160,7 @@ class ExportSpec:
             metadata={str(k): str(v) for k, v in metadatos.items()},
             states=tuple(str(e) for e in estados),
             functions={str(k): str(v) for k, v in funciones.items()},
+            fp16_outputs=tuple(str(s) for s in en_fp16),
         )
 
 
@@ -254,42 +260,28 @@ def convert(
     """`nn.Module` → mlprogram fp16 iOS 18, con las entradas y salidas del spec.
 
     Primero `torch.export` (el camino nuevo); si el grafo no lo traga, `jit.trace`
-    de respaldo, que es lo que ML-05 validó en las tres plataformas."""
+    de respaldo, que es lo que ML-05 validó en las tres plataformas.
+
+    Con `states` (SPK-53), cada nombre es un buffer del módulo que el forward
+    actualiza en sitio; sale como StateType fp16 con la forma del buffer. Ese camino
+    va directo por `jit.trace` (el de la guía de coremltools para estados) y no carga
+    el modelo al convertir: lo verifica después quien lo vaya a predecir."""
     import coremltools as ct  # noqa: PLC0415 — perezoso adrede (grupo apple)
     import torch  # noqa: PLC0415 — perezoso adrede (grupo train)
 
-    if spec.states or spec.functions:
-        # `states` llega con ML-51/SPK-53 (StateType). La multifunción existe, pero
-        # NO aquí: cada función se convierte suelta y las fusiona
-        # tools/export_multifunction.py (SPK-52), que es quien deduplica los pesos.
+    if spec.functions:
+        # La multifunción existe, pero NO aquí: cada función se convierte suelta y
+        # las fusiona tools/export_multifunction.py (SPK-52), que deduplica los pesos.
         msg = (
-            f"spec `{spec.model_name}`: `states` aún sin implementar (ML-51/SPK-53); "
-            "la multifunción se fusiona con tools/export_multifunction.py, no aquí"
+            f"spec `{spec.model_name}`: la multifunción se fusiona con "
+            "tools/export_multifunction.py, no aquí"
         )
         raise ExportError(msg)
 
     module = module.eval()
     ejemplos = tuple(torch.zeros(entrada.shape) for entrada in spec.inputs)
-
-    entradas_ct = []
-    for entrada in spec.inputs:
-        if entrada.kind == "image":
-            entradas_ct.append(
-                ct.ImageType(
-                    name=entrada.name,
-                    shape=entrada.shape,
-                    scale=IMAGE_SCALE,
-                    color_layout=ct.colorlayout.RGB
-                    if entrada.color == "RGB"
-                    else ct.colorlayout.BGR,
-                )
-            )
-        else:
-            import numpy as np  # noqa: PLC0415 — junto a sus consumidores
-
-            entradas_ct.append(
-                ct.TensorType(name=entrada.name, shape=entrada.shape, dtype=np.float16)
-            )
+    entradas_ct = _ct_inputs(spec)
+    opciones = _ct_state_options(module, spec)
 
     def _convertir(trazado: Any) -> Any:
         return ct.convert(
@@ -298,19 +290,29 @@ def convert(
             compute_precision=ct.precision.FLOAT16,
             minimum_deployment_target=getattr(ct.target, f"iOS{MINIMUM_IOS}"),
             inputs=entradas_ct,
+            **opciones,
         )
 
-    try:
-        # El camino nuevo entero: torch.export y su frontend. run_decompositions({})
-        # baja el grafo al dialecto ATEN, que es el que coremltools acepta.
-        modelo = _convertir(torch.export.export(module, ejemplos).run_decompositions({}))
-    except Exception:  # noqa: BLE001 — el respaldo es parte del contrato
-        # El respaldo cubre TAMBIÉN los fallos de ct.convert sobre el ExportedProgram
-        # (p. ej. el frontend nuevo no traga el linear 3D del decoder de D-FINE):
-        # el frontend de TorchScript es el maduro y el que ML-05 validó.
+    if spec.states:
         with torch.no_grad():
-            trazado = torch.jit.trace(module, ejemplos)
+            # check_trace=False: el forward cambia el estado y la comprobación de la
+            # traza lo vería como «no determinista».
+            trazado = torch.jit.trace(module, ejemplos, check_trace=False)
+            for nombre in spec.states:
+                module.get_buffer(nombre).zero_()
         modelo = _convertir(trazado)
+    else:
+        try:
+            # El camino nuevo entero: torch.export y su frontend. run_decompositions({})
+            # baja el grafo al dialecto ATEN, que es el que coremltools acepta.
+            modelo = _convertir(torch.export.export(module, ejemplos).run_decompositions({}))
+        except Exception:  # noqa: BLE001 — el respaldo es parte del contrato
+            # El respaldo cubre TAMBIÉN los fallos de ct.convert sobre el ExportedProgram
+            # (p. ej. el frontend nuevo no traga el linear 3D del decoder de D-FINE):
+            # el frontend de TorchScript es el maduro y el que ML-05 validó.
+            with torch.no_grad():
+                trazado = torch.jit.trace(module, ejemplos)
+            modelo = _convertir(trazado)
 
     # Los nombres de salida son el contrato: se renombra lo que haya salido.
     # get_spec() devuelve una COPIA: se pide una vez y se trabaja sobre ella.
@@ -325,8 +327,71 @@ def convert(
     for vieja, nueva in zip(actuales, spec.output_names, strict=True):
         if vieja != nueva:
             ct.utils.rename_feature(especificacion, vieja, nueva)
-    modelo = ct.models.MLModel(especificacion, weights_dir=modelo.weights_dir)
+    modelo = ct.models.MLModel(
+        especificacion,
+        weights_dir=modelo.weights_dir,
+        skip_model_load=bool(opciones.get("skip_model_load", False)),
+    )
 
     for clave, valor in metadata.items():
         modelo.user_defined_metadata[clave] = valor
     return modelo
+
+
+def _ct_inputs(spec: ExportSpec) -> list[Any]:
+    """Las entradas del spec en tipos de coremltools: ImageType o TensorType fp16."""
+    import coremltools as ct  # noqa: PLC0415 — perezoso adrede (grupo apple)
+    import numpy as np  # noqa: PLC0415 — junto a sus consumidores
+
+    entradas_ct: list[Any] = []
+    for entrada in spec.inputs:
+        if entrada.kind == "image":
+            entradas_ct.append(
+                ct.ImageType(
+                    name=entrada.name,
+                    shape=entrada.shape,
+                    scale=IMAGE_SCALE,
+                    color_layout=ct.colorlayout.RGB
+                    if entrada.color == "RGB"
+                    else ct.colorlayout.BGR,
+                )
+            )
+        else:
+            entradas_ct.append(
+                ct.TensorType(name=entrada.name, shape=entrada.shape, dtype=np.float16)
+            )
+    return entradas_ct
+
+
+def _ct_state_options(module: Any, spec: ExportSpec) -> dict[str, Any]:
+    """Lo que añaden `states` y `fp16_outputs` a ct.convert (SPK-53)."""
+    import coremltools as ct  # noqa: PLC0415 — perezoso adrede (grupo apple)
+    import numpy as np  # noqa: PLC0415 — junto a sus consumidores
+
+    opciones: dict[str, Any] = {}
+    if spec.states:
+        estados_ct = []
+        for nombre in spec.states:
+            try:
+                buffer = module.get_buffer(nombre)
+            except AttributeError as exc:
+                msg = f"spec `{spec.model_name}`: el estado {nombre!r} no es un buffer"
+                raise ExportError(msg) from exc
+            estados_ct.append(
+                ct.StateType(
+                    wrapped_type=ct.TensorType(shape=tuple(buffer.shape), dtype=np.float16),
+                    name=nombre,
+                )
+            )
+        opciones["states"] = estados_ct
+        opciones["skip_model_load"] = True
+    if spec.fp16_outputs:
+        # Las salidas que vuelven a entrar (el estado explícito) salen en fp16: así la
+        # app las recicla sin convertir.
+        opciones["outputs"] = [
+            ct.TensorType(name=n, dtype=np.float16)
+            if n in spec.fp16_outputs
+            else ct.TensorType(name=n)
+            for n in spec.output_names
+        ]
+    return opciones
