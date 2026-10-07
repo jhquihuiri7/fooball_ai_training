@@ -290,3 +290,77 @@ N4_TSM_FRACTION: Final = 8
 
 N4_HIDDEN: Final = 64
 """Canales del estado de la GRU de N4: múltiplo de 16 (ANE_CHANNEL_QUANTUM)."""
+
+N4_STATE_ROW: Final = 32
+"""Elementos fp16 por fila de cada tensor de estado del modo paso en Core ML (SPK-53).
+Con el estado en su forma nativa (filas de 112, 56 o 28 del mapa) Core ML no construye el
+plan del ANE para el modelo con MLState (error -14, medido en un M4 con macOS 26.3); con
+filas de 32 sí. El estado viaja empaquetado en (1, C, n/32, 32) y se desempaqueta dentro
+del grafo con un reshape, igual en las dos variantes para que solo cambie el mecanismo."""
+
+N4_STEP_COREML_ATOL: Final = {"logits": 2e-2, "h": 5e-2}
+"""Tolerancia absoluta del modo paso de N4 en Core ML fp16 contra torch fp32, por salida
+y por paso: los logits y el estado h de la GRU (en [-1, 1]). Medido en el Mac M4 con los
+100 pasos (SPK-53): en el ANE, 1,6e-3 y 1,4e-2; en la CPU fp16, 6,8e-3 y 4,8e-2. Una
+fuga de estado mueve los logits 0,1-0,3 y h hasta 0,99 en casi todos los pasos, así que
+estas tolerancias la ven de sobra."""
+
+N4_GOLDEN_STEPS: Final = 100
+"""Pasos de la secuencia dorada del modo paso (la tarjeta de SPK-53)."""
+
+# --------------------------------------------------------------------------- #
+# CenterNet-MNv4 de jugadores: objetivo, pérdida y decodificación (plan B, ADR 0020)
+# --------------------------------------------------------------------------- #
+
+CENTERNET_STRIDE: Final = 4
+"""Píxeles de entrada por celda del heatmap de CenterNet-MNv4: el cuello acaba en el paso 4
+de MobileNetV4 (`plan_b.CENTERNET_STAGES`). A 1920x576 son 480x144 celdas."""
+
+CENTERNET_GAUSS_ALPHA: Final = 0.54
+"""Ancho del gaussiano del objetivo, adimensional: sigma = alpha * lado / 6 en cada eje, en
+celdas (el de TTFNet). Elíptico, porque una persona es tres veces más alta que ancha y un
+radio redondo se lo marcaría todo por su lado corto."""
+
+CENTERNET_MIN_SIGMA_CELLS: Final = 0.1
+"""Sigma mínima del gaussiano, en celdas: evita dividir por cero con cajas de 1-2 px. Por
+debajo de 0,3 celdas el gaussiano ya solo marca su celda central."""
+
+CENTERNET_MIN_BOX_PX: Final = 2.0
+"""Lado mínimo, en píxeles de entrada, de una caja que entra al objetivo tras escalar y
+recortar. Más pequeña no se ve: si se marcara, el modelo aprendería ruido."""
+
+CENTERNET_MIN_VISIBLE: Final = 0.5
+"""Fracción del área de la caja que tiene que quedar dentro del lienzo tras recortar para
+que cuente; si queda menos, se ignora (ni positivo ni negativo). Es el criterio de las
+teselas (`LABEL_TILE_MIN_VISIBLE`)."""
+
+CENTERNET_FOCAL_ALPHA: Final = 2.0
+"""Exponente de la pérdida focal sobre la probabilidad (CenterNet, Zhou 2019)."""
+
+CENTERNET_FOCAL_BETA: Final = 4.0
+"""Exponente que rebaja la penalización de los negativos cerca de un centro (CenterNet)."""
+
+CENTERNET_PROB_EPS: Final = 1e-4
+"""Recorte de la probabilidad del heatmap a [eps, 1-eps] en la pérdida: sin él, log(0)."""
+
+CENTERNET_SIZE_WEIGHT: Final = 0.1
+"""Peso de la pérdida L1 del tamaño (en celdas) frente a la focal: el de CenterNet."""
+
+CENTERNET_OFFSET_WEIGHT: Final = 1.0
+"""Peso de la pérdida L1 del desplazamiento dentro de la celda: el de CenterNet."""
+
+CENTERNET_PRIOR: Final = 0.1
+"""Probabilidad inicial del heatmap: el sesgo de su última conv arranca en log(p/(1-p)).
+Con sesgo 0 la focal empieza con miles de negativos al 50 % y diverge."""
+
+CENTERNET_TOPK: Final = 100
+"""Picos que devuelve la decodificación por imagen. Una franja tiene 22 jugadores, 3
+árbitros y algún suplente: 100 sobra, y es el máximo del protocolo COCO."""
+
+CENTERNET_PEAK_KERNEL: Final = 3
+"""Lado, en celdas, del máximo local que hace de supresión: un pico es una celda que vale
+lo mismo que el máximo de su vecindad de 3x3 (CenterNet, sin NMS)."""
+
+LETTERBOX_FILL: Final = 114
+"""Gris del relleno (0-255) del letterbox y del lienzo del mosaico: el de DEIM/YOLO, el
+mismo de `tools/dfine_dap.py` (ML-16)."""

@@ -33,6 +33,7 @@ admiten y van con su aviso.
 | scipy | BSD-3 | Lo importa DEIM (`linear_sum_assignment` del emparejado) |
 | calflops | MIT | Lo importa DEIM al arrancar (`engine/misc`). Arrastra accelerate y huggingface-hub, Apache-2.0 los dos |
 | transformers | Apache-2.0 | No lo importa DEIM, pero sí calflops **al importarse** (`flops_counter_hf`): sin él, `engine.misc` ni carga (ML-16). Arrastra tokenizers y regex, Apache-2.0 los dos |
+| safetensors | Apache-2.0 | Llega con timm. `ftrain/players/centernet_train.py` lo importa para leer los pesos de ImageNet del tronco de CenterNet-MNv4 sin pasar por el hub |
 
 ## `apple` — opt-in, Linux y macOS (ML-05)
 
@@ -64,6 +65,16 @@ que git ignora.
 | **DEIM v1** | Apache-2.0 | Commit `09d35d5`, con su LICENSE copiada en `licenses/DEIM-LICENSE-09d35d5.txt`. Desde el 2025-07-21 lleva delante el copyright de Intellindust, el mismo titular que relicenció DEIMv2 como no comercial. Por eso el fetch **se para si la LICENSE cambia en una sola línea**. Se clona, no se vendoriza |
 | HGNetv2 | Apache-2.0 | El backbone de D-FINE-N. Va dentro de DEIM, que lo porta de PaddleDetection |
 | Pesos `dfine_n_coco.pth` | Apache-2.0 | D-FINE-N entrenado en COCO, de las releases de D-FINE, con el sha256 fijado en el fetch. Las imágenes de COCO tienen términos mixtos: es el riesgo residual que acepta el ADR 0002. **Vetados** los `*_obj365` y `*_obj2coco`, porque Objects365 no admite uso comercial |
+
+## Preentreno de CenterNet-MNv4, el plan B de jugadores (ADR 0020, para REF-33)
+
+Se bajan, no se vendorizan: `tools/fetch_coco_person.py` deja COCO en `datasets/coco2017/` y
+`tools/train_centernet.py` los pesos en `models/pretrained/`, los dos ignorados por git.
+
+| Qué | Licencia | Notas |
+|---|---|---|
+| Pesos `mobilenetv4_conv_small.e2400_r224_in1k` (timm) | Apache-2.0 | Lo dice su ficha en Hugging Face, en el commit fijado `331fb80`; sha256 fijado en `train_centernet.py`. Son el tronco de CenterNet-MNv4. ImageNet-1k es el riesgo residual que acepta el ADR 0002 |
+| COCO 2017, solo `person` | Anotaciones CC BY 4.0; cada imagen, su licencia Flickr | 64.115 imágenes con personas, y el 69 % son NC (ids 1-3). El preentreno COCO es el riesgo residual que acepta el ADR 0002, el mismo de `dfine_n_coco.pth`. El índice guarda la licencia de cada imagen: `--licencias 4,5,6,7,8` entrena solo con las 19.746 comerciales si el propietario lo pide |
 
 ## Referencias de diseño de N3 y N4 — se leen, no se vendorizan (ADR 0004)
 

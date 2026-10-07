@@ -93,6 +93,13 @@ uv run python tools/fetch_tdeed.py        # clona T-DEED en third_party/ (GPL, n
 uv run python tools/fetch_soccernet.py    # etiquetas; los vídeos piden el NDA
 ```
 
+Preentreno de CenterNet-MNv4 con COCO person (plan B de jugadores, ADR 0020):
+
+```bash
+uv run python tools/fetch_coco_person.py      # ~10 GB en datasets/coco2017/
+uv run python tools/train_centernet.py --out runs/centernet-coco --hours 12.5   # reanudable
+```
+
 Los comandos de la arquitectura B (ingesta, extracción de frames, autoanotación,
 `export_coreml`, `ane_lint`, paridad y dorados) se añaden aquí con la tarea que crea cada
 herramienta.
