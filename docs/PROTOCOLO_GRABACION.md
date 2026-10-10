@@ -2,8 +2,8 @@
 
 Qué se hace en cada partido para que la grabación sirva de dataset. El manifiesto
 (`matches/_plantilla.yaml`, validado por `ftrain/manifest.py`) es la parte que se
-rellena; esto es la parte que se ejecuta. **El propietario revisa este protocolo
-antes del primer partido.**
+rellena; esto es la parte que se ejecuta. **El propietario lo revisó y lo aceptó el
+2026-10-09, antes del primer partido.**
 
 ## Lista previa (en el montaje, antes del saque)
 

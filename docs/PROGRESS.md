@@ -702,7 +702,7 @@ tarjeta). Sin código: pytest sigue en 152 passed, 1 skipped.
   monótonos.
 - ruff ✅ · ruff format ✅ · pytest 145 passed, 1 skipped.
 
-## 2026-10-03 · ML-06 — protocolo de grabación y manifiesto de partido · ✅ (protocolo pendiente de revisión del propietario)
+## 2026-10-03 · ML-06 — protocolo de grabación y manifiesto de partido · ✅
 
 **Hecho**
 - `docs/PROTOCOLO_GRABACION.md`: la lista previa (NTP, «Guardar vídeo» en los dos,
@@ -719,8 +719,8 @@ tarjeta). Sin código: pytest sigue en 152 passed, 1 skipped.
   y URI se defiende nombrándose.
 - ruff ✅ · ruff format ✅ · pytest 138 passed, 1 skipped.
 
-**Pendiente**: la revisión del protocolo por el propietario antes del primer
-partido, que es parte de la aceptación.
+**Aceptación**: el propietario revisó el protocolo y lo aceptó el 2026-10-09, antes del primer
+partido. Con eso la tarea queda cerrada.
 
 ## 2026-10-03 · ML-04 — datos en GCS y arranque en RunPod · 🚧 falta el pod limpio
 
