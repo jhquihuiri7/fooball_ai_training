@@ -4,7 +4,8 @@
 - **Estado:** ACEPTADO (2026-10-10), aceptado por el propietario (Alex). Cierra ML-47.
   Estuvo PROPUESTO desde el 2026-10-05. El propietario pidió ese día seguir sin esperar a
   su respuesta, así que ML-48 y ML-51 se construyeron sobre él antes de aceptarlo. Ver
-  «Aceptación».
+  «Aceptación». El mismo día, el propietario decidió que N4 se reporta a ±1 s y a ±2 s
+  (§4 y nota 1 de la aceptación).
 - **Tarea:** ML-47 del plan de migración
   (`docs/plan-dos-moviles/entrenamiento.md` del repo de detección, rama `migracion/dos-moviles`)
 - **Parte de:** el ADR 0021 del repo de detección (aceptado el 2026-09-30), que ya fija los
@@ -121,7 +122,8 @@ decididas en ninguna parte:
 - **Un acierto** es una marca de la clase dentro de la tolerancia de una etiqueta humana,
   con emparejamiento uno a uno:
   - N3: ±2 s;
-  - N4: ±1 s.
+  - N4: ±1 s, su cifra de aceptación, y también ±2 s, la de comparación con N1 y N3.
+    Lo decidió el propietario el 2026-10-10 (nota 1 de la aceptación).
 - **Por clase:** precisión, recall y AP, más la mediana del error de fecha de los aciertos.
 - **Contra qué:**
   - N1 (EV-08) sobre los mismos partidos;
@@ -179,15 +181,27 @@ ese día:
 
 ### Notas de la aceptación
 
-No cambian ninguna decisión. Se anotan para que el propietario las vea.
+Se anotaron para que el propietario las viera. Ninguna cambiaba una decisión; la 1 la
+decidió después, y amplía el §4.
 
 1. **N4 y N1 no se miden con la misma vara.** El §4 mide N4 con ±1 s y lo compara con N1
    (EV-08). En cambio, la nota «Anotado al implementar EV-03» del ADR 0021 (pendiente de
    revisión) y `tools/events/measure_events.py` de football-ai (`EVENTS_TOLERANCE_S` = 2 s)
    miden N1, N3 y N4 todos con ±2 s. Con tolerancias distintas, las cifras de N4 y de N1
-   no se pueden comparar directamente. **Recomendación:** que N4 publique su cifra con ±1 s
-   (ML-54) y otra con ±2 s para compararla con N1. `measure_events.py` ya admite
-   `--tolerance`. Lo decide el propietario en ML-54 o en EV-08.
+   no se pueden comparar directamente. La recomendación era publicar N4 a las dos.
+
+   **Decidido por el propietario (Alex) el 2026-10-10: N4 se reporta a ±1 s —su cifra de
+   aceptación— y a ±2 s —la de comparación con N1/N3—.**
+   - En football-ai ya está hecho (`18c91bf`): `measure_events.py` saca las filas de N4 a
+     las dos tolerancias, con `N4_ACCEPTANCE_TOLERANCE_S` = 1 s, y la nota de EV-03 del
+     ADR 0021 recoge la decisión.
+   - Aquí todavía no hay código que cambiar. `match_events` de `ftrain/events/spotting.py`
+     solo recorre las clases de N3 (lo usa `tools/train_e3.py`), y la evaluación de N4 aún
+     no existe. La escribe ML-54, que da el AP y la P/R a las dos tolerancias:
+     - ±2 s con `N3_TOLERANCE_S`, que ya existe;
+     - ±1 s con una constante nueva de N4 en `ftrain/constants.py`, con su comentario y sus
+       unidades.
+   - La tarjeta de ML-54 lleva la nota (football-ai, `18c91bf`).
 2. **El test del formato no se escribió.** La aceptación pedía comprobar el formato de §3
    con el validador del N0 v1 en el primer test de ML-48 o de ML-51, pero ninguna de las
    dos escribe marcas todavía. Además, la referencia fijada en `pyproject.toml` (`efed47b`,

@@ -37,6 +37,27 @@ aquí. Las que no llevan marca están ⬜.
 
 ---
 
+## 2026-10-10 · ML-47 — N4 se reporta a ±1 s y a ±2 s · ✅
+
+**Decidido por el propietario (Alex) el 2026-10-10:** el spotter N4 se reporta a ±1 s
+—su cifra de aceptación— y a ±2 s —la de comparación con N1 y N3—. Cierra la nota 1 de la
+aceptación del ADR 0004.
+
+**Hecho**
+- ADR 0004: la decisión en el §4, en el estado y en la nota 1.
+- En football-ai (`18c91bf`), `measure_events.py` saca N4 a las dos tolerancias, con
+  `N4_ACCEPTANCE_TOLERANCE_S` = 1 s. La nota de EV-03 del ADR 0021 y la tarjeta de ML-54
+  recogen la decisión.
+
+**Sin código aquí**: la evaluación de N4 todavía no existe. `match_events` de
+`ftrain/events/spotting.py` solo recorre las clases de N3 (lo usa `tools/train_e3.py`).
+
+**Qué quedó fuera**: la evaluación de N4 a las dos tolerancias. La escribe ML-54:
+- ±2 s con `N3_TOLERANCE_S`;
+- ±1 s con una constante nueva de N4 en `ftrain/constants.py`.
+
+**Siguiente paso**: ninguno nuevo. ML-54 espera a ML-52 y ML-53.
+
 ## 2026-10-10 · ML-47 — ADR 0004 aceptado: N3 y N4 distribuibles y su formato · ✅
 
 El propietario (Alex) aceptó el ADR 0004 el 2026-10-10, con la recomendación de Jhonatan.
