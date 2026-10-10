@@ -1,0 +1,10 @@
+# D-FINE-N COCO a la franja de 1920x576 (ML-16), la forma que midió SPK-51 en el iPhone 17.
+# Quedó fuera del ANE y el detector de jugadores es CenterNet-MNv4 desde REF-33 (ADR 0020):
+# el spec se guarda para rehacer el paquete si hay que volver a medirlo.
+model_name: dfine-n-band
+inputs:
+  - name: image
+    kind: image
+    shape: [1, 3, 576, 1920]
+    color: RGB
+outputs: [logits, boxes]

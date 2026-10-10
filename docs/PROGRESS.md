@@ -16,7 +16,7 @@ aquí. Las que no llevan marca están ⬜.
 | ML-E1 | Infraestructura y contrato del repo | ML-01 ✅ · ML-02 ✅ · ML-03 ✅ · ML-04 🚧 · ML-05 ✅ |
 | ML-E2 | Campaña de datos: grabación, ingesta, extracción y anotación | ML-06 ✅ · ML-07 ✅ · ML-08 · ML-17 · ML-18 · ML-19 ✅ · ML-20 · ML-21 ✅ · ML-22 ✅ · ML-23 · ML-58 |
 | ML-E3 | Autoanotación con maestro y players-v1 | ML-24 · ML-25 · ML-26 ✅ · ML-27 · ML-28 · ML-29 · ML-30 · ML-31 |
-| ML-E4 | Jugadores: D-FINE-N a 1920×576 | ML-15 ✅ · ML-16 · ML-32 · ML-33 · ML-34 · ML-35 |
+| ML-E4 | Jugadores: D-FINE-N a 1920×576 | ML-15 ✅ · ML-16 ✅ · ML-32 · ML-33 · ML-34 · ML-35 |
 | ML-E5 | Balón: heatmap ROI-lite de 3 frames en gris | ML-14 ✅ · ML-36 ✅ · ML-37 · ML-38 · ML-39 · ML-40 · ML-41 · ML-42 |
 | ML-E6 | Export a Core ML y validación | ML-09 · ML-10 · ML-11 · ML-12 · ML-13 · ML-43 · ML-45 |
 | ML-E7 | Spikes de modelo en el iPhone 17 | SPK-50 · SPK-51 · SPK-52 · SPK-53 🚧 · SPK-54 · SPK-56 |
@@ -36,6 +36,50 @@ aquí. Las que no llevan marca están ⬜.
 | T6 | Verificación numérica torch vs onnxruntime (< 1e-3) | ✅ **9,54e-06** |
 
 ---
+
+## 2026-10-10 · ML-16 — cerrada sin subir los paquetes a GCS · ✅
+
+El propietario (Alex) la cerró el 2026-10-10 con la recomendación de Jhonatan. Se cierra
+sin el punto 5 de la tarjeta, que pedía subir los paquetes de D-FINE-N a GCS para SPK-51.
+
+**Por qué**
+- Desde REF-33 (ADR 0020 de football-ai, aceptado el 2026-10-09), el detector de jugadores
+  es CenterNet-MNv4. D-FINE-N quedó fuera del ANE: 0 % y 150 ms en la GPU.
+- SPK-51 se midió sin el bucket: los paquetes llegaron al iPhone desde este Mac.
+- Los paquetes se rehacen en segundos con el export que ya existe.
+
+**Hecho**
+- `configs/export/dfine-n-band.yaml` (1920×576) y `configs/export/dfine-n-setback.yaml`
+  (1536×512). El comando que dejó ML-16 pedía un `--spec` que no estaba en el repo, y
+  ahora está. Un test nuevo (`test_los_specs_de_dfine_casan_con_sus_builders`) comprueba
+  dos cosas: que las formas casan con `BAND_SIZE` y `SETBACK_SIZE`, y que las salidas son
+  `logits` y `boxes`, las del wrapper.
+- Comprobado hoy en el Mac (M4, macOS 26.3): cada paquete se rehace en unos 10 s. ane_lint
+  da sobre la banda lo mismo que en ML-16: canales 87, rango-5 33, fp32 3 y 0 de orden
+  fuera de cola.
+
+**Dónde están**: solo en local, en `runs/dfine-n/`, que git ignora. Son
+`dfine-n-band.mlpackage` y `dfine-n-setback.mlpackage`, cada uno con su `.mlpackage.zip`,
+rehechos hoy. En GCS no hay copia. El sha256 del zip cambia con cada commit, porque el
+commit va en los metadatos.
+
+**Para rehacerlos** (DEIM y `dfine_n_coco.pth` los trae `tools/fetch_deim.py` si faltan):
+
+```bash
+uv sync --group train --group apple
+uv run python tools/export_coreml.py --spec configs/export/dfine-n-band.yaml \
+    --builder ftrain.players.dfine:build_band --checkpoint models/pretrained/dfine_n_coco.pth \
+    --dataset-version coco2017 --region playable_band --out runs/dfine-n --keep-package
+uv run python tools/export_coreml.py --spec configs/export/dfine-n-setback.yaml \
+    --builder ftrain.players.dfine:build_setback --checkpoint models/pretrained/dfine_n_coco.pth \
+    --dataset-version coco2017 --region playable_band --out runs/dfine-n --keep-package
+uv run python tools/ane_lint.py runs/dfine-n/dfine-n-band.mlpackage --config configs/ane_lint/dfine-n.yaml
+```
+
+**Qué quedó fuera**: la subida a GCS, por decisión del propietario. ML-04 sigue 🚧 por su
+cuenta, pero ya no bloquea a ML-16.
+
+**Siguiente paso**: ninguno sobre D-FINE-N. ML-32 a ML-35 siguen sobre CenterNet-MNv4.
 
 ## 2026-10-07 · SPK-53 (la pata de export) — N4 en modo paso con MLState y con E/S explícita · 🚧 falta el iPhone
 
@@ -470,7 +514,7 @@ Las latencias por función y el coste de cambiar se miden en el iPhone
 **Siguiente paso**: ML-17 (muestreo de frames) si sus deps lo permiten; si no,
 quedan las tareas que esperan al propietario (ML-04/06/21) o a hubs/REF-33.
 
-## 2026-10-03 · ML-16 — D-FINE-N COCO a 1920×576, exportado y con su fp16 medido · ✅ criterios (🚧 subida a GCS, espera el bucket de ML-04)
+## 2026-10-03 · ML-16 — D-FINE-N COCO a 1920×576, exportado y con su fp16 medido · ✅ (cerrada el 2026-10-10 sin subir a GCS)
 
 **Hecho**
 - `ftrain/players/dfine.py`: `build()` desde la config de DEIM (YAMLConfig,
@@ -508,7 +552,8 @@ quedan las tareas que esperan al propietario (ML-04/06/21) o a hubs/REF-33.
 **Qué quedó fuera**: la subida de los paquetes a GCS para SPK-51 — espera el
 bucket de ML-04 (propietario). Los artefactos se regeneran con
 `ftrain.players.dfine` + `tools/export_coreml.py --builder
-ftrain.players.dfine:build_band` en minutos.
+ftrain.players.dfine:build_band` en minutos. *2026-10-10: el propietario la cerró
+sin la subida; el comando completo, con su spec, está en la entrada de ese día.*
 
 **Siguiente paso**: ML-24 (teselado/TTA, H2).
 

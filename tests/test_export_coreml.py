@@ -5,13 +5,10 @@ from __future__ import annotations
 import json
 import os
 import zipfile
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 import pytest
 import yaml
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 from ftrain.export.coreml import (
     ExportError,
@@ -22,6 +19,9 @@ from ftrain.export.coreml import (
     normalize_manifest,
     sha256_of,
 )
+from ftrain.players.dfine import BAND_SIZE, SETBACK_SIZE
+
+CONFIGS = Path(__file__).resolve().parent.parent / "configs" / "export"
 
 SPEC = {
     "model_name": "demo",
@@ -72,6 +72,21 @@ def test_los_metadatos_llevan_el_contrato_en_texto():
     assert metadatos["dataset_version"] == "jugadores/v1"
     assert metadatos["nota"] == "de prueba"  # lo del spec viaja también
     assert all(isinstance(v, str) for v in metadatos.values())
+
+
+@pytest.mark.parametrize(
+    ("fichero", "forma"),
+    [("dfine-n-band.yaml", BAND_SIZE), ("dfine-n-setback.yaml", SETBACK_SIZE)],
+)
+def test_los_specs_de_dfine_casan_con_sus_builders(fichero, forma):
+    """Los specs con los que se rehacen los paquetes de ML-16: la forma es la del builder
+    y las salidas, las del wrapper sin postproceso."""
+    spec = load_spec(CONFIGS / fichero)
+    alto, ancho = forma
+    assert [(e.name, e.kind, e.shape, e.color) for e in spec.inputs] == [
+        ("image", "image", (1, 3, alto, ancho), "RGB")
+    ]
+    assert spec.output_names == ("logits", "boxes")
 
 
 def _paquete_falso(raiz: Path, *, contenido: bytes = b"pesos") -> Path:
