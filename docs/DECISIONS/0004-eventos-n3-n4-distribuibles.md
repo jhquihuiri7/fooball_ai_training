@@ -1,9 +1,10 @@
 # ADR 0004 — N3 y N4: el spotter distribuible y su formato de eventos
 
 - **Fecha:** 2026-10-05
-- **Estado:** PROPUESTO (lo acepta el propietario; es la aceptación de ML-47). El
-  propietario pidió el 2026-10-05 seguir sin esperar a su respuesta: ML-48 y lo que
-  sigue se construyen según este ADR, que queda pendiente de su revisión.
+- **Estado:** ACEPTADO (2026-10-10), aceptado por el propietario (Alex). Cierra ML-47.
+  Estuvo PROPUESTO desde el 2026-10-05. El propietario pidió ese día seguir sin esperar a
+  su respuesta, así que ML-48 y ML-51 se construyeron sobre él antes de aceptarlo. Ver
+  «Aceptación».
 - **Tarea:** ML-47 del plan de migración
   (`docs/plan-dos-moviles/entrenamiento.md` del repo de detección, rama `migracion/dos-moviles`)
 - **Parte de:** el ADR 0021 del repo de detección (aceptado el 2026-09-30), que ya fija los
@@ -160,3 +161,44 @@ decididas en ninguna parte:
 
 El propietario acepta el ADR. El formato de §3 se comprueba con el validador de N0 v1 de
 EV-02 en el primer test de ML-48 o ML-51.
+
+**Aceptado el 2026-10-10** por el propietario (Alex), con la recomendación de Jhonatan. Al
+aceptarlo se comprobó contra la tarjeta de ML-47 y contra el ADR 0021, tal como estaban
+ese día:
+
+- **Vocabulario.** Las clases de N3 (corner, throw_in, goal_kick, kickoff, free_kick y goal)
+  y las de N4 (shot y goal) están todas en `MARK_KINDS`. `source` es `positions` en N3 y
+  `spotter` en N4, y las dos llevan `by` y `confidence`, como pide el ADR 0021 §4.
+- **Formato.** Pasan `validate_record` de `libs/vision/match_log.py` tres marcas como la
+  de §3: un corner de N3, y un shot y un goal de N4. Se probó con football-ai en `53eb09b`.
+- **Medida.** Por partido completo, con ±2 s en N3 y ±1 s en N4, como pide la tarjeta.
+- **Licencias.** E2E-Spot está en `DEPENDENCIES.md` como referencia de diseño, sin
+  vendorizar.
+- **Desde que se propuso**, solo cambió la rejilla de N3: pasó a 16×10 con 7 canales, como
+  pide la tarjeta de ML-48 (`41530d6`).
+
+### Notas de la aceptación
+
+No cambian ninguna decisión. Se anotan para que el propietario las vea.
+
+1. **N4 y N1 no se miden con la misma vara.** El §4 mide N4 con ±1 s y lo compara con N1
+   (EV-08). En cambio, la nota «Anotado al implementar EV-03» del ADR 0021 (pendiente de
+   revisión) y `tools/events/measure_events.py` de football-ai (`EVENTS_TOLERANCE_S` = 2 s)
+   miden N1, N3 y N4 todos con ±2 s. Con tolerancias distintas, las cifras de N4 y de N1
+   no se pueden comparar directamente. **Recomendación:** que N4 publique su cifra con ±1 s
+   (ML-54) y otra con ±2 s para compararla con N1. `measure_events.py` ya admite
+   `--tolerance`. Lo decide el propietario en ML-54 o en EV-08.
+2. **El test del formato no se escribió.** La aceptación pedía comprobar el formato de §3
+   con el validador del N0 v1 en el primer test de ML-48 o de ML-51, pero ninguna de las
+   dos escribe marcas todavía. Además, la referencia fijada en `pyproject.toml` (`efed47b`,
+   de ML-03) es anterior a `match_log.py` (EV-02, `06bcf9a`). Al aceptar se comprobó a mano
+   (arriba). El test queda para ML-57, cuya tarjeta ya pide validar con el esquema de
+   EV-02; para escribirlo habrá que mover la referencia fijada.
+3. **La tarjeta de ML-47 está desfasada.** Su lista «Formato» sigue dando `whistle` como
+   fuente y el campo `side`, y llama al fichero `0004-eventos-e3-e4-distribuibles.md`. Manda
+   el ADR 0021, como dice la nota del principio de la propia tarjeta y el §3 de este ADR.
+   El fichero lleva N3 y N4 en el nombre por el renombrado del ADR 0021.
+4. **El ejemplo de `by` del ADR 0021 §4** (`e4-spotter@0.3.0`) es de antes del renombrado
+   a N0-N4. Aquí se usan `n3-positions@<versión>` y `n4-spotter@<versión>`. El validador
+   solo pide una cadena no vacía, así que no hay choque: el ejemplo de allí está
+   desactualizado.

@@ -20,7 +20,7 @@ aquí. Las que no llevan marca están ⬜.
 | ML-E5 | Balón: heatmap ROI-lite de 3 frames en gris | ML-14 ✅ · ML-36 ✅ · ML-37 · ML-38 · ML-39 · ML-40 · ML-41 · ML-42 |
 | ML-E6 | Export a Core ML y validación | ML-09 · ML-10 · ML-11 · ML-12 · ML-13 · ML-43 · ML-45 |
 | ML-E7 | Spikes de modelo en el iPhone 17 | SPK-50 · SPK-51 · SPK-52 · SPK-53 🚧 · SPK-54 · SPK-56 |
-| ML-E8 | Eventos aprendidos N3 y N4 | ML-47 🚧 · ML-48 ✅ · ML-49 · ML-50 🚧 · ML-51 ✅ · ML-52 · ML-53 · ML-54 · ML-55 · ML-57 |
+| ML-E8 | Eventos aprendidos N3 y N4 | ML-47 ✅ · ML-48 ✅ · ML-49 · ML-50 🚧 · ML-51 ✅ · ML-52 · ML-53 · ML-54 · ML-55 · ML-57 |
 | ML-E9 | Retiradas | ML-46 ✅ (en el repo de detección) |
 
 ## Línea base de T-DEED, congelada (ADR 0002)
@@ -36,6 +36,38 @@ aquí. Las que no llevan marca están ⬜.
 | T6 | Verificación numérica torch vs onnxruntime (< 1e-3) | ✅ **9,54e-06** |
 
 ---
+
+## 2026-10-10 · ML-47 — ADR 0004 aceptado: N3 y N4 distribuibles y su formato · ✅
+
+El propietario (Alex) aceptó el ADR 0004 el 2026-10-10, con la recomendación de Jhonatan.
+Estaba PROPUESTO desde el 2026-10-05, y ML-48 y ML-51 ya se habían construido sobre él.
+
+**Hecho**
+- El ADR pasa a ACEPTADO y lleva su nota de aceptación, con lo que se comprobó:
+  - las clases de N3 y N4, `source` (`positions` o `spotter`) y `by`, contra la tarjeta y
+    el ADR 0021 §4;
+  - el formato: tres marcas como la de §3 (un corner de N3, un shot y un goal de N4)
+    pasan `validate_record` del N0 v1 en football-ai (`53eb09b`);
+  - ±2 s en N3 y ±1 s en N4, por partido completo;
+  - E2E-Spot en `DEPENDENCIES.md`, como referencia de diseño y sin vendorizar.
+- Cuatro notas en el ADR que no cambian nada y quedan para el propietario:
+  1. **La vara de N4.** N4 se mide con ±1 s, pero `measure_events.py` (EV-03) mide N1,
+     N3 y N4 con ±2 s. Se recomienda publicar N4 con las dos tolerancias. Lo decide ML-54
+     o EV-08.
+  2. **El test del formato.** El que pedía la aceptación no se escribió con ML-48 ni con
+     ML-51, porque ninguna escribe marcas todavía. Además, la referencia fijada
+     (`efed47b`) es anterior a `match_log.py`. El test queda para ML-57, y habrá que mover
+     la referencia.
+  3. **La tarjeta de ML-47** sigue con `whistle` y `side`, y con el nombre viejo del
+     fichero.
+  4. **El ejemplo `e4-spotter@0.3.0` del ADR 0021 §4** es de antes del renombrado a N0-N4.
+
+**Qué desbloquea**: ML-48 y ML-51 ya estaban hechas, y ahora su dependencia queda en ✅.
+ML-57 pide ML-47, EV-08 y ML-23. Con esto tiene ML-47, pero sigue esperando a EV-08 (N1
+sobre partidos propios, en football-ai) y a ML-23 (CVAT, que espera el bucket de ML-04).
+
+**Siguiente paso**: ninguno nuevo en eventos hasta que haya partidos propios (ML-58) y
+CVAT (ML-23).
 
 ## 2026-10-10 · ML-16 — cerrada sin subir los paquetes a GCS · ✅
 
@@ -409,13 +441,14 @@ comparación con N1.
 
 **Siguiente paso**: ML-26 (evaluación por bandas).
 
-## 2026-10-05 · ML-47 — ADR 0004: N3 y N4 distribuibles y su formato · 🚧 PROPUESTO
+## 2026-10-05 · ML-47 — ADR 0004: N3 y N4 distribuibles y su formato · ✅ (aceptado el 2026-10-10)
 
 **Hecho**
 - `docs/DECISIONS/0004-eventos-n3-n4-distribuibles.md`. Baja a algo construible lo que el
   ADR 0021 de football-ai ya decidió:
   - N3: rejillas de 12×8 celdas con 2 canales (jugadores por celda y balón) a 7,5 Hz, 16 s
-    de contexto causal, TCN de ≤100.000 parámetros y 6 clases más «nada»;
+    de contexto causal, TCN de ≤100.000 parámetros y 6 clases más «nada». Con ML-48
+    (`41530d6`) la rejilla pasó a 16×10 con 7 canales;
   - N4: un recorte de 448×256 por cámara a 7,5 Hz, MNv4-Conv-S destilado de DINOv2-S, TSM y
     GRU causal, con shot y goal más «nada»; la fusión de las dos cámaras va en el maestro
     (IOS-78);
@@ -432,6 +465,7 @@ comparación con N1.
   datos, con su licencia.
 
 **Falta**: que el propietario acepte el ADR. Con eso empiezan ML-48 y ML-51.
+*2026-10-10: aceptado por el propietario (Alex); ver la entrada de ese día.*
 
 ## 2026-10-05 · ML-36 — trayectorias del balón para etiquetar · ✅
 
