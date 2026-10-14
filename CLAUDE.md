@@ -100,6 +100,13 @@ uv run python tools/fetch_coco_person.py      # ~10 GB en datasets/coco2017/
 uv run python tools/train_centernet.py --out runs/centernet-coco --hours 12.5   # reanudable
 ```
 
+Un pod de RunPod listo para entrenar, desde tu máquina y con un solo comando (ML-04,
+`docs/DATOS.md`; pide RUNPOD_API_KEY, FAI_GCS_BUCKET y GOOGLE_APPLICATION_CREDENTIALS):
+
+```bash
+bash tools/runpod.sh [datasets/<nombre>/<version>]   # PRUEBA=1 delante: lo borra al acabar
+```
+
 Los comandos de la arquitectura B (ingesta, extracción de frames, autoanotación,
 `export_coreml`, `ane_lint`, paridad y dorados) se añaden aquí con la tarea que crea cada
 herramienta.

@@ -37,6 +37,44 @@ aquí. Las que no llevan marca están ⬜.
 
 ---
 
+## 2026-10-10 · ML-04 — el pod con un solo comando desde la máquina local · 🚧 falta la pasada en un pod limpio
+
+Al preparar la pasada a mano salieron dos cosas que la habrían tumbado en un pod limpio:
+- **football-ai es privado** (desde fuera, 404), y `uv sync --group ref` lo baja de GitHub
+  por la fuente fijada en ML-03. En el portátil funciona con las credenciales de git
+  guardadas; en el pod no hay ninguna.
+- **Las imágenes de `runpod/pytorch` no traen `gcloud`**, y el arranque lo daba por hecho.
+  Además, con su salida a `/dev/null`, se habría parado sin decir por qué.
+
+**Hecho**
+- `tools/runpod.sh`, el comando local, modelado sobre `deploy/runpod.sh` del repo de
+  detección:
+  - pide el pod a la API REST (solo el 22/tcp) y espera al ssh;
+  - sube este repo al último commit y football-ai al commit fijado, como `git bundle` desde
+    las copias locales, sin GitHub ni token;
+  - mete por la tubería de ssh la clave de GCS y el arranque, sin argv ni secretos de RunPod;
+  - con `PRUEBA=1` borra el pod al terminar, salga bien o mal. Con `POD_ID`, reutiliza uno.
+- `tools/runpod_pod.py`: el cuerpo del pod, el campo de una respuesta y la referencia de
+  `pyproject.toml`, con la biblioteca estándar, para probarlo sin red.
+- `tools/runpod_bootstrap.sh`:
+  - clona de `FAI_TRAINING_SRC` (URL o bundle);
+  - con `FAI_REF_SRC`, sirve football-ai desde el bundle con una regla `insteadOf` y una
+    etiqueta en el commit fijado, sin tocar `pyproject.toml` ni `uv.lock`;
+  - instala `gcloud` si falta y comprueba el acceso al bucket;
+  - deja ver los errores de `uv sync` y de `gcloud`.
+- `docs/DATOS.md` y `CLAUDE.md` §4, con el comando.
+
+**Tests**: `tests/test_runpod.py` (12): el cuerpo y sus validaciones, el campo anidado, la
+referencia leída del `pyproject.toml` del repo, que la clave solo se lee para la tubería, y
+`bash -n` de los dos scripts.
+
+**Ejecutado aquí (Windows)**: ruff ✅ · ruff format ✅ · `bash -n` ✅ · pytest 277 passed,
+11 skipped, 2 errors. Los dos errores son de `test_dfine_wrapper.py`: calflops importa
+`transformers`, que falta en este venv. No es de este cambio.
+
+**No ejecutado**: el pod de verdad. Para el ✅ falta
+`PRUEBA=1 bash tools/runpod.sh` en un pod limpio, y anotar aquí su salida.
+
 ## 2026-10-10 · ML-47 — N4 se reporta a ±1 s y a ±2 s · ✅
 
 **Decidido por el propietario (Alex) el 2026-10-10:** el spotter N4 se reporta a ±1 s

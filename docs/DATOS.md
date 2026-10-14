@@ -33,15 +33,28 @@ gs://$FAI_GCS_BUCKET/
 
 ## El arranque de un pod (RunPod)
 
+Un solo comando, desde tu máquina y en la raíz de este repo (en Windows, desde Git Bash):
+
 ```bash
-# En el pod, con la clave de servicio YA en el entorno (nunca en una imagen):
-export GOOGLE_APPLICATION_CREDENTIALS_JSON='<contenido del json>'
+export RUNPOD_API_KEY=...                       # runpod.io -> Settings -> API Keys
 export FAI_GCS_BUCKET=<bucket>
-bash tools/runpod_bootstrap.sh <commit> datasets/jugadores/v1
+export GOOGLE_APPLICATION_CREDENTIALS=<ruta del json de la cuenta de servicio>
+bash tools/runpod.sh datasets/jugadores/v1      # PRUEBA=1 delante: lo borra al acabar
 ```
 
-El script clona este repo AL COMMIT pedido, hace `uv sync --group train --group ref`,
-autentica `gcloud` escribiendo la clave a un fichero 600 dentro del pod (sin pasarla
-jamás por argv ni enseñarla), y baja la versión del dataset a `/workspace/datasets/`
-con caché en el volumen de red (`/workspace/cache/`): una versión es inmutable, así
-que lo cacheado no caduca y el segundo pod del día arranca en segundos.
+`tools/runpod.sh` pide el pod a la API de RunPod, espera al ssh y sube los dos repos como
+`git bundle` desde las copias locales: este al último commit de la rama en la que estés, y
+football-ai (`FAI_REF_REPO`, por defecto `../football-ai`) al commit que fija
+`pyproject.toml`. football-ai es privado, así que el pod no lo baja de GitHub y no hace falta
+ningún token. Después mete por la tubería de ssh la clave y `tools/runpod_bootstrap.sh`:
+la clave no pasa por argv ni se guarda en RunPod.
+
+Dentro del pod, el arranque deja este repo AL COMMIT pedido, y uv toma football-ai del
+bundle, que git sirve en lugar de GitHub con una regla `insteadOf`. Hace
+`uv sync --group train --group ref` e instala `gcloud` si la imagen no lo trae. Autentica
+escribiendo la clave a un fichero 600 dentro del pod, sin pasarla jamás por argv ni
+enseñarla, y comprueba que llega al bucket. Por último baja la versión del dataset a
+`/workspace/datasets/`, con caché en el volumen de red (`/workspace/cache/`): una versión es
+inmutable, así que lo cacheado no caduca y el segundo pod del día arranca en segundos.
+
+En un pod que ya tengas, el arranque se puede lanzar a mano; su cabecera dice cómo.

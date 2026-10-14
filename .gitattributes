@@ -1,0 +1,3 @@
+# Los scripts que corren en Linux (y en Git Bash) van con saltos de linea de Unix pase lo que
+# pase: con CRLF, bash lee mal la ultima palabra de cada linea, y el error no apunta ahi.
+*.sh text eol=lf
